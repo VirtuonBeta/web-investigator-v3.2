@@ -251,6 +251,8 @@ anomalies:            ["Rate limit returns JSON error body instead of HTML"]
 | `prerequisite_requests` | array \| null | Entry IDs of requests that must complete before this one. `null` if no dependencies. |
 | `cookies_required` | array \| null | Cookie names required for this request to succeed. `null` if not tested. |
 | `headers_required` | array \| null | Header names required for this request to succeed (e.g., `Authorization`, `Referer`). `null` if not tested. |
+| `fingerprint_type` | enum \| null | `header` \| `tls` \| `none` \| `null`. Only for test_id `NON_HTTP_REPLAY_FAILURE`. Distinguishes header-based fingerprinting (solvable with correct headers) from TLS-based (requires TLS impersonation). `null` if not applicable. |
+| `fastest_tested_rate` | string \| null | Fastest request rate that returned normal responses during rate limit test. Format: `N req/s (tested)` or `N req/s (limited at M req/s)`. Only for test_id `RATE_LIMIT_DETECTED` or rate limit tests. NOT a safe rate guarantee — ceiling on tested speed. `null` if not applicable. |
 
 ---
 

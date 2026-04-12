@@ -533,11 +533,17 @@ Identify which content items are sponsored, promoted, or advertisements rather t
 
 ---
 
-### [P32] Rate limit test
+### [P32] Rate limit test (2-tier)
 
-Fire the discovered API endpoint 5 times with 1-second delays. Observe whether responses degrade, return rate-limit errors (429), or remain consistent.
+Fire the discovered API endpoint in 2 tiers to find the fastest tested rate. This is NOT a guarantee of safe production speed — it's the fastest speed tested during the investigation.
 
-**What to watch for:**
+**Tier 1 (standard):** 5 requests at 1-second intervals. Observe whether responses degrade, return rate-limit errors (429), or remain consistent.
+
+**If Tier 1 passes (all 200, no degradation):** Run Tier 2.
+
+**Tier 2 (fast):** 5 requests at 0.3-second intervals. Observe same criteria.
+
+**What to watch for (both tiers):**
 
 - **HTTP 429 Too Many Requests:** Explicit rate limiting.
 - **HTTP 503 Service Unavailable:** May indicate rate limiting or load shedding.
@@ -545,7 +551,20 @@ Fire the discovered API endpoint 5 times with 1-second delays. Observe whether r
 - **CAPTCHA challenge:** Some sites respond to rate limiting with CAPTCHAs instead of 429s.
 - **Consistent responses:** No rate limiting detected at this request volume.
 
-**Why this matters:** Understanding rate limits determines how fast you can extract data. If the API rate-limits at 5 requests/second, you need to throttle extraction accordingly. If there's no rate limiting at this volume, you may be able to extract faster — but should still be respectful.
+**Result classification:**
+
+| Outcome | `fastest_tested_rate` |
+|---|---|
+| Tier 1 hits rate limit | `1 req/s (limited)` |
+| Tier 1 passes, Tier 2 hits rate limit | `1 req/s (limited at 3.3 req/s)` |
+| Both tiers pass | `3.3 req/s (tested)` |
+| Tier 1 passes, Tier 2 not run (budget) | `1 req/s (tested only)` |
+
+**Log:** EDGE_CASE_TEST with test_id `RATE_LIMIT_DETECTED` (if limited) or `CUSTOM` (if no limit found). Include `fastest_tested_rate` field with the result string above. This field is NOT a safe rate guarantee — it's the fastest speed that returned normal responses during this test.
+
+**Budget:** 1-2 decision cycles. Tier 2 only runs if Tier 1 passes cleanly.
+
+**Why this matters:** Understanding rate limits determines how fast you can extract data. The 2-tier approach finds whether the API tolerates faster requests without the budget cost of 9-request burst tests. The analyst should treat `fastest_tested_rate` as a ceiling on tested speed, not a production recommendation.
 
 ---
 

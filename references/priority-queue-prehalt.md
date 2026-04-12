@@ -564,7 +564,15 @@ Many sites use IntersectionObserver (IO) for lazy-loading content — items appe
    - **Continuous loading** → Scroll event listener (items load continuously during scroll).
    - **Only loads when scroll stops** → IO + debounce (items load after scrolling pauses).
 
-**Log:** EDGE_CASE_TEST with test_id `INTERSECTION_OBSERVER_DETECTED`.
+**IO endpoint extraction:** When IO loading is detected, CDP will have captured the XHR/fetch requests that loaded the new items. Extract these from CDP captures and log them as part of the P9a observation:
+
+- **Endpoint URL(s):** The XHR/fetch URLs that IO triggered (e.g., `/v2/articles?offset=24`)
+- **Batch size:** Number of items returned per IO request
+- **Total count signal:** Any "Showing 1-N of M" text in the DOM or `total`/`count` fields in the response
+
+This extraction is critical because P11 (pagination trigger) assumes a button/scroll action. If the mechanism is pure IO, P11 needs to know which endpoint to probe — and P9a already triggered it.
+
+**Log:** EDGE_CASE_TEST with test_id `INTERSECTION_OBSERVER_DETECTED`. Include `io_endpoints` array with URL, batch_size, and total_count (if found) in the entry details.
 
 **Why viewport simulation matters:** IO-based loading responds to elements entering the viewport, not to scroll events. Just firing `scroll` events won't trigger IO observers — you need to actually change the viewport position. This is a common pitfall that leads to false "no more content" conclusions.
 
@@ -746,9 +754,20 @@ This step is triggered when P13 (or P24/P29/P30) raw HTTP replay fails with NO H
 2. The same URL succeeded when accessed via the browser.
 3. The failure is not a TRANSIENT error (retry once to confirm).
 
-**Log:** EDGE_CASE_TEST `NON_HTTP_REPLAY_FAILURE`.
+**Active probe — distinguish TLS vs header fingerprinting:**
 
-**Implications:** TLS fingerprinting means raw HTTP replay is impossible without TLS impersonation. This is a significant constraint on extraction strategy — you may need to use the browser for all data access, or use a tool that can impersonate browser TLS fingerprints.
+When P13b fires, do NOT just log "probably TLS fingerprinting." Run 2 additional requests to determine the fingerprint type:
+
+1. **Minimal headers request:** Send raw HTTP with only `Host` and `User-Agent` headers. If this also fails with no HTTP status → confirms fingerprinting, continue to test 2.
+2. **Full browser headers request:** Send raw HTTP with a complete browser header set (`Accept`, `Accept-Language`, `Accept-Encoding`, `Sec-Fetch-Dest`, `Sec-Fetch-Mode`, `Sec-Fetch-Site`, `Sec-Ch-Ua`, `Sec-Ch-Ua-Mobile`, `Sec-Ch-Ua-Platform`, `Upgrade-Insecure-Requests`). If this SUCCEEDS, the fingerprinting is **header-based** — the server checks header presence/ordering, not TLS. If this also FAILS, the fingerprinting is **TLS-based** — the server checks the TLS handshake.
+
+**Why this distinction matters:**
+- **Header fingerprinting** → Solvable by sending the right headers in the scraper. Trivial fix.
+- **TLS fingerprinting** → Requires `curl-impersonate`, `got-scraping`, or similar TLS-mimicking tools. Hard constraint.
+
+**Log:** EDGE_CASE_TEST `NON_HTTP_REPLAY_FAILURE` with `fingerprint_type: "header" | "tls" | "none"` field.
+
+**Implications:** TLS fingerprinting means raw HTTP replay is impossible without TLS impersonation. This is a significant constraint on extraction strategy — you may need to use the browser for all data access, or use a tool that can impersonate browser TLS fingerprints. Header fingerprinting is much easier to work around — the analyst just needs to include the right headers.
 
 ---
 

@@ -1,8 +1,10 @@
 # CDP Infrastructure Setup
 
-Reference file for the Web Investigator (Agent 1 v3.0). CDP passive capture layer configuration and management.
+Reference file for the Web Investigator (Agent 1 v3.1). CDP passive capture layer configuration and management.
 
 Read this during Phase 0 setup and when CDP issues arise.
+
+**Phase reference:** Setup steps (Pre-P1) are in `references/priority-queue-prehalt.md`. Post-halt steps that use CDP data are in `references/priority-queue-posthalt.md`.
 
 ---
 
