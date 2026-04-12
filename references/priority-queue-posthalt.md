@@ -12,6 +12,7 @@ Before using this file, you should already have (from `references/priority-queue
 - [ ] Pagination replay tested (P13) — know if raw HTTP works
 - [ ] Search forms discovered (P12c) if any exist
 - [ ] Rendering classification determined (P6/P5a)
+- [ ] If EU site: consent flow mapping completed (P7c) — consent state may affect content visibility
 
 If any prerequisite is missing, return to `references/priority-queue-prehalt.md` before proceeding.
 

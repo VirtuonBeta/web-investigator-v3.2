@@ -214,7 +214,9 @@ Some sites fingerprint requests to detect automation:
 - Cookie presence/absence
 - Header count anomalies
 
-**Detection:** if raw HTTP request gets **403** but same URL works in browser → likely TLS/header fingerprinting. Log as `UNKNOWN` with hypothesis.
+**Detection and classification:** When raw HTTP replay fails while browser succeeds, P13b (in `references/priority-queue-prehalt.md`) runs an active probe to determine whether the fingerprinting is header-based (solvable with correct headers) or TLS-based (requires TLS impersonation tools like `curl-impersonate`). P13b logs the result as an EDGE_CASE_TEST with `fingerprint_type: "header" | "tls" | "none"`.
+
+**Do NOT log fingerprinting as UNKNOWN with a hypothesis** — use the P13b active probe instead.
 
 ---
 

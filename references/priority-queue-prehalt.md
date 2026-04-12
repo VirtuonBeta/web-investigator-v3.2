@@ -16,8 +16,6 @@ This file provides the HOW for each investigation step. The WHY lives in SKILL.m
 
 ---
 
----
-
 ## Phase 0: Pre-Flight
 
 These steps run before the investigation proper begins. They ensure the environment is healthy and primed, so later observations are reliable. None of these consume a decision cycle.
@@ -40,7 +38,7 @@ details:
   known_issues:       [<list>]
   known_technology:   [<list>]
   auth_required:      <bool>
-  max_cycles:         <value or default 50>
+  max_cycles:         <value or default 60>
   page_limit:         <value or default 15>
   geo_requirements:   <list or NONE>
 ```

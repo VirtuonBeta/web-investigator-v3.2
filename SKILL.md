@@ -63,7 +63,7 @@ D2 is the first thing you read when recovering context. It tells you exactly whe
 ## D2: State
 Phase: P17 | Key: SSR, /v2/articles, cursor pagination, no auth
 Dead ends: GraphQL ✗, shadow DOM ✗ | Open: cursor type? rate limit threshold?
-Budget: 18/50 cycles used | context_risk: LOW
+Budget: 18/60 cycles used | context_risk: LOW
 Last checkpoint: P16
 ```
 
@@ -152,17 +152,19 @@ The investigation proceeds through priority phases. Each phase has a purpose and
 
 Key outputs: CDP capture validated, DOM structure mapped, window globals extracted, SSR/CSR/RSC classified, cookies and localStorage cataloged, robots.txt and sitemap parsed.
 
-**Pre-Brief (before Phase 0):** Read the entire `site_brief.md` and log a SYSTEM entry enumerating all target fields, questions, and known technology. This entry becomes the reference point for P16b verification.
+**Pre-Brief (before Phase 0):** Read the entire `site_brief.md` and log a SYSTEM entry enumerating all target fields, questions, known technology, and geo_requirements. This entry becomes the reference point for P16b verification. If `geo_requirements` includes `EU`, flag for P7c (consent flow mapping) and increase baseline cycles by 2.
 
 ### Phase 2: Content Discovery (~5 cycles)
 
 **Purpose:** Understand how content is structured and how to access all of it.
 
-Key outputs: content item types and selectors identified, pagination mechanism classified, pagination endpoint captured, search/filter forms discovered and probed.
+Key outputs: content item types and selectors identified, pagination mechanism classified (scan-first: check all 7 signal types before classifying), pagination endpoint captured with depth probing (up to 5 pages), search/filter forms discovered and probed.
 
 **Extraction path taxonomy applied (P3/P5):** Every identified field is classified by extraction path type (structured_data → semantic_html → aria_role → data_attribute → meta_content → class_semantic → class_hashed). Fields with only `class_hashed` paths are flagged as `[brittle]`. This taxonomy feeds into the Extraction Stability Matrix at P22.
 
 **Crawl trap protection (P10):** Date-based pagination stops at 1 month before latest content date; session/tracking parameter traps stop after 3 identical pages; opaque cursor caps at 5 pages.
+
+**EU consent flow mapping (P7c):** When Pre-Brief flags `geo_requirements: EU`, this step maps consent platforms (OneTrust, TCF, Sourcepoint), categories, and content gating. EU consent can gate article visibility, not just cookies.
 
 ### Phase 3: Content Item Entry (~3 cycles/item, min 3 items)
 

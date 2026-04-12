@@ -1,4 +1,4 @@
-# Site Brief Template `v2.0`
+# Site Brief Template `v3.1`
 
 This file is the per-site input that tells the investigator WHAT to investigate.
 
