@@ -42,9 +42,15 @@ details:
   auth_required:      <bool>
   max_cycles:         <value or default 50>
   page_limit:         <value or default 15>
+  geo_requirements:   <list or NONE>
 ```
 
 This entry becomes the reference point for P16b verification. If a target_field or question is not in this entry, P16b cannot verify it was answered.
+
+**Geo-awareness (conditional):** If `geo_requirements` includes `EU` (or if the target URL is a European domain and no geo_requirements field exists in site_brief.md):
+1. Flag the investigation for P7c (consent flow mapping) — this step becomes mandatory, not optional.
+2. Increase `max_cycles` by 2. Log the adjusted value in the Pre-Brief entry.
+3. EU consent walls can gate content visibility, not just cookie state. Without P7c, the log may document truncated content as "full content."
 
 **Does NOT consume a decision cycle.**
 
@@ -421,6 +427,55 @@ For each key: record `value_sample` (first 30 chars only — don't log full valu
 
 ---
 
+### [P7c] Consent flow mapping (EU-only, conditional)
+
+**Triggered by:** Pre-Brief flagged `geo_requirements: EU`.
+
+On EU sites, consent state can control what content is visible — not just what cookies are set. On sites like DN.se or SVT.se, rejecting consent truncates article text to a preview. This step maps the consent mechanism and its content impact.
+
+**If no EU flag from Pre-Brief:** Skip this step entirely. Log nothing.
+
+**Procedure:**
+
+1. **Detect consent platform** — check for these known consent signals:
+
+   | Signal | Platform |
+   |---|---|
+   | `window.OnetrustActiveGroups` | OneTrust |
+   | `window.__tcfapi` or `window.__tcfapiLocator` | TCF v2 (IAB Europe) |
+   | `window.__cmp` or `window.__cmpLocator` | CMP (older IAB) |
+   | `window._sp_` | Sourcepoint |
+   | `window.consentData` or `window.UC_UI` | Usercentrics |
+   | Cookies containing `euconsent`, `eupubconsent`, `consentStatus` | Generic EU consent |
+
+2. **Map consent categories** — for each detected platform, identify which cookie/content categories it manages:
+   - OneTrust: Parse `OnetrustActiveGroups` string (comma-separated category IDs like `C0001,C0003`)
+   - TCF v2: Call `__tcfapi('getTCData', 2, callback)` to get purpose consents
+   - Log: which categories exist, which are active, which are required vs optional
+
+3. **Content availability test** — compare content visibility before and after consent:
+   - **Before consent acceptance:** Note visible article text length, DOM structure, any truncated elements with `aria-hidden` or `display:none` on content areas
+   - **Click "Accept All" or equivalent:** Wait for consent handlers to complete (2 seconds)
+   - **After consent acceptance:** Re-snapshot affected areas, note any content that appeared or expanded
+   - **If consent banner was already handled in P2:** This test still runs — check whether the P2 consent state is "full consent" or "essential only"
+
+4. **Map consent-dependent content** — for each content zone that changed:
+   - Which consent category controls it (e.g., "C0003 functional cookies" vs "C0004 targeting cookies")
+   - What content is gated vs always visible
+   - Whether the gating is client-side (CSS hide/show, DOM removal) or server-side (different response body)
+
+**Log:** SYSTEM entry with event `consent_flow_map` containing:
+- Platform detected (OneTrust/TCF/Sourcepoint/Usercentrics/other/none)
+- Categories and their states
+- Content zones affected by consent state
+- Whether gating is client-side or server-side
+
+**Budget:** 2 decision cycles (consent state check + content comparison). Does NOT count toward P11 pagination budget.
+
+**Why this matters:** On European news sites, the consent state is not just about cookies — it controls whether you see full article text or a truncated preview. A scraper that doesn't handle consent will get different content than one that does. Without this mapping, the analyst has no way to know that the content they see in the log is incomplete.
+
+---
+
 ### [P8] robots.txt and sitemap.xml
 
 `robots.txt` reveals which paths the site owner considers off-limits to automated access. `sitemap.xml` reveals the full URL structure — often exposing content patterns that aren't visible from navigation alone.
@@ -519,17 +574,27 @@ Many sites use IntersectionObserver (IO) for lazy-loading content — items appe
 
 Pagination determines how you access content beyond the first page. Different mechanisms require different interaction strategies, and some have traps that can waste your entire budget.
 
-**Check for:**
+**CRITICAL: Scan ALL signal types before classifying.** Decision-tree pagination identification is the #1 cause of "stuck at first page" failures — the agent finds one mechanism (e.g., IO lazy-loading), classifies it, and stops looking. On Yahoo Finance, this caused the agent to identify infinite scroll and miss the underlying cursor API that was the real pagination mechanism.
 
-- Infinite scroll
-- "Load More" button
-- Numbered pages
-- URL-based pagination (`?page=2`, `/page/2/`)
+**Scan for ALL 7 signal types before classifying:**
 
-**Cross-reference with P9a:**
+| # | Signal Type | Detection Method |
+|---|---|---|
+| 1 | **XHR/fetch pagination API** | Review CDP captures from P2 for XHR/fetch requests with pagination parameters (`page`, `offset`, `cursor`, `after`, `start`, `skip`) |
+| 2 | **Infinite scroll (IO)** | Cross-reference with P9a — IO batches with pauses indicate viewport-triggered loading |
+| 3 | **"Load More" button** | `document.querySelectorAll('button, a')` matching text patterns: "Load More", "Show More", "See More", "More Results" |
+| 4 | **Numbered page links** | `document.querySelectorAll('a[href*="page="], a[href*="/page/"], nav a')` with numeric text |
+| 5 | **URL-based pagination** | Current URL contains `?page=`, `?p=`, `/page/N/`, `?offset=`, `?start=` |
+| 6 | **Cursor parameter** | CDP captures show requests with `cursor=`, `after=`, `startAfter=`, `continuation=`, `token=` parameters |
+| 7 | **Session/tracking param pagination** | Same URL returns different content on reload with session cookies — server-side pagination without visible UI controls |
 
-- If P9a detected IO: the pagination trigger is "element enters viewport" — not a button click.
-- If multiple mechanisms exist: log each separately, test the primary one first.
+**After scanning all 7, classify the mechanism(s):**
+
+A site can have MULTIPLE pagination mechanisms (e.g., IO for initial load + cursor API for deep pagination). Log EACH mechanism found, ranked by priority for scraper construction:
+- **Primary:** The mechanism that provides the most complete data access (usually the XHR/fetch API if found)
+- **Secondary:** Any additional mechanism that provides access to different content or different pages
+
+**If multiple mechanisms exist:** Test the API-based mechanism first (P11) — it's always the better data source. IO/button mechanisms are fallback.
 
 **If no mechanism and single-page content:** Log `pagination_mechanism_identification: NONE_SINGLE_PAGE`. Skip P11-P13 — there's nothing to paginate.
 
@@ -541,15 +606,15 @@ Pagination determines how you access content beyond the first page. Different me
 | Session/tracking parameters with identical content | Stop after 3 consecutive identical pages. Log EDGE_CASE_TEST `CRAWL_TRAP_DETECTED`. |
 | Opaque cursor with no terminal signal | Cap at 5 pages. You can't tell when it ends, so don't chase it forever. |
 
-**Log:** Mechanism type and trigger element. If a button is found, log its exact selector — you'll need it for P11.
+**Log:** All signal types detected (not just the first one found), classified mechanism(s) with priority ranking, trigger element selectors. If a button is found, log its exact selector — you'll need it for P11.
 
-**Why this matters:** Pagination is how you determine the full scope of available content. Without understanding the pagination mechanism, you can't estimate content volume, can't test API replay, and risk falling into crawl traps that consume your entire budget.
+**Why this matters:** Pagination is how you determine the full scope of available content. Without understanding the pagination mechanism, you can't estimate content volume, can't test API replay, and risk falling into crawl traps that consume your entire budget. The scan-first approach prevents the common failure mode where the agent identifies IO lazy-loading and stops, missing the underlying cursor API.
 
 ---
 
-### [P11] Trigger pagination once — WITH CDP
+### [P11] Trigger pagination with depth probing — WITH CDP
 
-Now that you know the pagination mechanism, trigger it once while CDP is listening. This captures the network request that fetches the next page of content — which is often an API call that reveals the site's data endpoint.
+Now that you know the pagination mechanism, trigger it while CDP is listening. Depth probing (up to 5 pages) catches "soft caps" where pagination works for the first few pages then degrades — a pattern that a single trigger would miss.
 
 **Procedure:**
 
@@ -557,7 +622,17 @@ Now that you know the pagination mechanism, trigger it once while CDP is listeni
 - **Respect crawl trap boundaries** from P10 — don't trigger beyond safe limits.
 - CDP captures the XHR/fetch request automatically.
 
-**Log:** URL, method, params, response schema.
+**Depth probing (up to 5 pages):**
+
+1. Trigger pagination for page 2. Log the request/response.
+2. Trigger page 3. Compare response structure and item count to page 2.
+3. **Fast path:** If pages 2 and 3 return consistent structure (same schema, similar item count, no errors), note "pagination consistent through page 3" and skip pages 4-5.
+4. **Full path:** If ANY structural change appears (fewer items, missing fields, errors, truncated content), continue to pages 4 and 5.
+5. **Soft cap detection:** If a page returns partial data or errors while earlier pages were fine, log EDGE_CASE_TEST `CRAWL_TRAP_DETECTED` with detail: "Soft cap at page N — full data through page N-1, degraded at page N."
+
+**Budget:** 2-5 decision cycles depending on fast/full path. Most sites hit the fast path at 3 pages.
+
+**Log:** URL, method, params, response schema for EACH page triggered. Note structural consistency or changes across pages.
 
 **If request goes to a THIRD-PARTY domain:** Log EDGE_CASE_TEST `THIRD_PARTY_CMS_API`.
 
@@ -567,7 +642,7 @@ Now that you know the pagination mechanism, trigger it once while CDP is listeni
   - **Strapi:** Look for REST-style format with `id`, `attributes` structure.
 - **A third-party CMS response is the PRIMARY data source** — it's the raw content before any frontend transformation.
 
-**Why this matters:** The pagination API call is often the most valuable single observation in the entire investigation. It reveals the data endpoint, the response schema, the cursor/page mechanism, and potentially the CMS provider. This single request can replace hundreds of DOM scraping operations.
+**Why this matters:** The pagination API call is often the most valuable single observation in the entire investigation. It reveals the data endpoint, the response schema, the cursor/page mechanism, and potentially the CMS provider. Depth probing catches soft caps that a single trigger would miss — some sites return full data for pages 1-3 then degrade at page 4. Without probing, you'd log "pagination works fine" and the scraper would break in production.
 
 ---
 

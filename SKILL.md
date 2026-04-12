@@ -270,9 +270,12 @@ Handle barriers BEFORE content investigation:
 |---------|--------|
 | Cookie consent banner | Log, click "Accept All", proceed |
 | Redirect to consent domain | Log redirect chain, attempt to navigate through |
+| EU consent platform (OneTrust, TCF, Sourcepoint) | Run P7c consent flow mapping — consent state may gate content visibility, not just cookies |
 | Paywall | Log what's visible vs. gated, continue with visible content |
 | CAPTCHA/challenge | BLOCKER — do not attempt to solve |
 | Geo-restriction | Log, note in SYSTEM entry, continue with available content |
+
+**EU sites (when Pre-Brief flags `geo_requirements: EU`):** P7c is mandatory. On European news sites, the consent state controls whether you see full article text or a truncated preview. Without P7c, the log may document truncated content as "full content." The Pre-Brief automatically increases baseline cycles by 2 for EU sites.
 
 ---
 
