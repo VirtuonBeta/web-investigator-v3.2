@@ -152,6 +152,8 @@ The investigation proceeds through priority phases. Each phase has a purpose and
 
 Key outputs: CDP capture validated, DOM structure mapped, window globals extracted, SSR/CSR/RSC classified, cookies and localStorage cataloged, robots.txt and sitemap parsed.
 
+**Pre-Brief (before Phase 0):** Read the entire `site_brief.md` and log a SYSTEM entry enumerating all target fields, questions, and known technology. This entry becomes the reference point for P16b verification.
+
 ### Phase 2: Content Discovery (~5 cycles)
 
 **Purpose:** Understand how content is structured and how to access all of it.

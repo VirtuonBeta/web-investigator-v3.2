@@ -462,6 +462,7 @@ Priority queue step → Phase number:
 
 | Priority Queue Steps | Phase | Description | Reference File |
 |---|---|---|---|
+| Pre-Brief | 0 | Full site brief ingestion | prehalt |
 | P1 | 0 | Pre-flight | prehalt |
 | P2–P8 | 1 | Baseline | prehalt |
 | P9–P13 | 2 | Content discovery | prehalt |

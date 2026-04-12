@@ -36,6 +36,9 @@ At each gate, verify:
 ☐ BUDGET_STATUS is written (P8, P13, P16)
 ☐ Entry IDs are sequential and no IDs are skipped
 ☐ No entry contains banned phrases (see §4)
+☐ Re-read the next phase section in the appropriate priority-queue
+  reference file (prehalt for phases 0–2, posthalt for phases 3–8)
+  BEFORE writing the first entry of that phase
 ```
 
 ---
@@ -161,7 +164,7 @@ Work on one phase at a time. Do not:
 
 When moving from one phase to the next:
 1. Complete the current phase gate (see §1).
-2. Read the next phase section: `references/priority-queue-prehalt.md` for phases 0–2, or `references/priority-queue-posthalt.md` for phases 3–8.
+2. Re-read the next phase section: `references/priority-queue-prehalt.md` for phases 0–2, or `references/priority-queue-posthalt.md` for phases 3–8. This is mandatory, even if you have read it before.
 3. Then begin the new phase.
 
 Do not "preview" the next phase while still completing the current one. This leads to premature observations that may be wrong because the current phase hasn't established the necessary context.

@@ -84,7 +84,7 @@ The investigator works through a priority queue top to bottom. Each phase has a 
 
 | Phase | Steps | Cycles | Purpose |
 |-------|-------|--------|---------|
-| Pre-flight | Pre-P0 → Pre-P2 | 0 | CDP health, warm-up, tech adjustments |
+| Pre-flight | Pre-Brief → Pre-P2 | 0 | Brief ingestion, CDP health, warm-up, tech adjustments |
 | Baseline | P1 → P8a | ~8 | What IS this site? Rendering, globals, cookies, robots, sitemap |
 | Content Discovery | P9 → P13c | ~5 | Content structure, pagination, deep web forms |
 | *First-pass halt* | — | — | *Operator reviews before continuing* |

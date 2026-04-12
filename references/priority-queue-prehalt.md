@@ -8,7 +8,7 @@ This file provides the HOW for each investigation step. The WHY lives in SKILL.m
 
 | Phase | Steps | Purpose |
 |-------|-------|---------|
-| Phase 0 | Pre-P0 → Pre-P2 | Environment validation |
+| Phase 0 | Pre-Brief → Pre-P2 | Brief ingestion + environment validation |
 | Phase 1 | P1 → P8a | Baseline — what IS this site? |
 | Phase 2 | P9 → P13c | Content discovery — how is content structured? |
 
@@ -21,6 +21,32 @@ This file provides the HOW for each investigation step. The WHY lives in SKILL.m
 ## Phase 0: Pre-Flight
 
 These steps run before the investigation proper begins. They ensure the environment is healthy and primed, so later observations are reliable. None of these consume a decision cycle.
+
+---
+
+### [Pre-Brief] Read site_brief.md in full
+
+Read the entire site_brief.md before any other action.
+
+Log a SYSTEM entry with:
+```
+event:                custom
+description:          "site_brief read"
+details:
+  target_url:         <url>
+  content_type:       <type>
+  target_fields:      [<list all fields from target_data>]
+  open_questions:     [<list all questions from questions field>]
+  known_issues:       [<list>]
+  known_technology:   [<list>]
+  auth_required:      <bool>
+  max_cycles:         <value or default 50>
+  page_limit:         <value or default 15>
+```
+
+This entry becomes the reference point for P16b verification. If a target_field or question is not in this entry, P16b cannot verify it was answered.
+
+**Does NOT consume a decision cycle.**
 
 ---
 

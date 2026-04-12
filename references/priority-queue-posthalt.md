@@ -144,20 +144,20 @@ After examining a detail page, navigate back to the listing page. This observati
 
 ### [P16b] Site Brief Field Verification
 
-After completing P14-P16 for at least 3 items, cross-reference your findings against the fields in `site_brief.md`. This ensures the investigation actually covers what the operator asked about.
+After completing P14-P16 for at least 3 items, cross-reference your findings against the operator's requirements. This ensures the investigation actually covers what the operator asked about.
 
 **Procedure:**
 
-1. Re-read `site_brief.md` — specifically the `target_data` and `questions` fields.
-2. For each field/question in the brief, check: did your observations so far address it?
-3. If a field is unanswered: note it in D0 as an open question.
-4. If a field is answered: note the entry ID(s) that provide the answer.
+1. Read the Pre-Brief SYSTEM entry (the first SYSTEM entry with description `"site_brief read"`). For each `target_field` and `open_question` listed in its details, check: did your observations address it?
+2. If a field is unanswered: note it in D0 as an open question.
+3. If a field is answered: note the entry ID(s) that provide the answer.
+4. If the Pre-Brief entry is missing (investigation started before Pre-Brief was added): re-read `site_brief.md` directly — specifically the `target_data` and `questions` fields.
 
 **Log:** SYSTEM entry with event `custom`, description "Site brief field verification", details containing a mapping of `{brief_field: entry_id_or_OPEN}`.
 
-**Why this matters:** Without this check, it's easy to complete the investigation and realize you never answered the operator's actual question. The brief may ask about auth mechanisms while you spent all your budget on content structure. This step ensures alignment between investigation output and operator needs.
+**Why this matters:** Without this check, it's easy to complete the investigation and realize you never answered the operator's actual question. The brief may ask about auth mechanisms while you spent all your budget on content structure. This step ensures alignment between investigation output and operator needs. The Pre-Brief entry is the reliable reference point because it was written at startup when context was fresh — it captures every field and question the operator cared about.
 
-**Does NOT consume a full decision cycle** — it's a verification step that takes one re-read of the brief.
+**Does NOT consume a full decision cycle** — it's a verification step that references a single log entry.
 
 ---
 
