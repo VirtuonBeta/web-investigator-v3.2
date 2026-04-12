@@ -92,7 +92,7 @@ Leave blank to use the default from the agent config.
 
 ```yaml
 budget:
-  max_cycles: null        # null = use default (50)
+  max_cycles: null        # null = use default (60)
   max_pages: null         # null = use default (15). Counts unique page navigations only.
   priority_overrides: null  # null = use default priority queue
   # Example override:

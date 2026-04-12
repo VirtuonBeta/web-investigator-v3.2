@@ -66,6 +66,38 @@ Snapshot the item detail page's DOM structure, organized by zone. This zone-base
 
 **Why this matters:** The body zone is where the actual content lives, but it's often polluted with ads, related articles, and other noise. Identifying the clean content container and its exclusions is critical for reliable extraction.
 
+**Detail page extraction path mapping:**
+
+For each zone, identify every extractable field and its best extraction path. This is the detail-page equivalent of the P3 extraction path tagging from prehalt. Use the same extraction path type taxonomy (structured_data → semantic_html → aria_role → data_attribute → meta_content → class_semantic → class_hashed).
+
+**Header zone fields to map:**
+| Field | Check These Paths (in priority order) |
+|---|---|
+| Title/headline | ld+json.headline → h1 → [data-testid*="title"] → .headline → [class_hashed] |
+| Author | ld+json.author.name → [rel="author"] → [data-testid*="author"] → .byline → [class_hashed] |
+| Publish date | ld+json.datePublished → time[datetime] → [data-testid*="date"] → .date → [class_hashed] |
+| Modified date | ld+json.dateModified → time[datetime] (2nd) → [data-testid*="updated"] → [class_hashed] |
+| Category/tag | ld+json.articleSection → [data-testid*="category"] → .category → [class_hashed] |
+| Image | ld+json.image.url → img[src] within header → [data-testid*="hero"] → [class_hashed] |
+
+**Body zone fields to map:**
+| Field | Check These Paths (in priority order) |
+|---|---|
+| Article body | ld+json.articleBody → article → [role="main"] → .article-body → [class_hashed] |
+| Sub-headings | h2, h3 within body → [data-testid*="subtitle"] → [class_hashed] |
+| Embedded media | figure > img, iframe, video → [data-testid*="media"] → [class_hashed] |
+| Links | a[href] within body → [data-testid*="link"] → [class_hashed] |
+
+**Footer zone fields to map:**
+| Field | Check These Paths (in priority order) |
+|---|---|
+| Related articles | a[href] within related section → [data-testid*="related"] → .related → [class_hashed] |
+| Tags/categories | a[href*="/tag/"] or a[href*="/category/"] → [data-testid*="tag"] → .tags → [class_hashed] |
+
+For each field, log the BEST available path and ALL fallback paths. If only `[class_hashed]` is available, flag as `[brittle: no stable path]`.
+
+**Log:** DOM_SNAPSHOT with context `article_entry_N` MUST include `extraction_map` field containing the complete field-to-path mapping (see log-format.md).
+
 ---
 
 ### [P15b] Hidden content element detection
@@ -311,11 +343,87 @@ Comparing the DOM structure across multiple items reveals which selectors are st
 
 **Why this matters:** An extraction schema based on a single item's structure will fail when it encounters items with different structures. Cross-item comparison catches these failures before they happen, ensuring your schema handles the full variety of content.
 
+**Cross-method stability validation:**
+
+Beyond comparing selectors across items, compare EXTRACTION METHODS across the same item. This is the critical test that determines which fields are safe to extract and which will break.
+
+**Procedure:**
+
+For each field identified in P15's extraction map, validate across >=3 items:
+
+1. **Structured data availability:** Does ld+json contain this field for ALL items? Or only some?
+   - All items → `structured_data` path is universal. Flag as `[stable: universal]`
+   - Some items → partial coverage. Flag as `[stable: partial, coverage X/3]`
+   - No items → Must rely on DOM.
+
+2. **Semantic HTML consistency:** Does the same semantic element (h1, time[datetime], etc.) appear for this field across ALL items?
+   - All items → `semantic_html` path is universal
+   - Some items use different elements → Log the variants
+
+3. **Data attribute consistency:** Does the same `data-testid` appear for this field across ALL items?
+   - All items → `data_attribute` path is universal
+   - Different data-testids → Log the variants
+
+4. **Class-based selector survival:** Do the same hashed classes appear for this field across ALL items?
+   - All items → stable across items (but may still break on deploy)
+   - Different classes → brittle even across items
+
+**Final extraction stability matrix:**
+
+```
+| Field | structured_data | semantic_html | data_attribute | class_hashed |
+|-------|----------------|---------------|----------------|-------------|
+| title | universal       | h1            | partial        | .yf-1a2b    |
+| author| universal       | partial       | none            | .yf-3c4d    |
+| date  | universal       | time[dt]      | none            | .yf-5e6f    |
+| body  | none            | article       | none            | .yf-7g8h    |
+```
+
+**Fields with NO column showing "universal" are HIGH RISK.** Flag them as `stability_risk: HIGH` with an explanation.
+
+**Log:** DOM_SNAPSHOT with context `stability_matrix` containing the complete matrix. This matrix is the single most actionable artifact for scraper construction — it tells the analyser exactly which fields are safe and which will break.
+
 ---
 
 ## Phase 5: Request Replay (~5 cycles)
 
 This phase systematically tests what's required to make API requests work outside the browser. Each test removes or modifies one variable, identifying which factors are required for successful responses.
+
+**Request dependency tracking:**
+
+Throughout Phase 5, track which prior requests are required for each test to succeed. This builds the HTTP request chain that an analyser needs to construct valid scraper requests.
+
+**For each test (P23-P27), add these fields to the EDGE_CASE_TEST entry:**
+
+- `prerequisite_requests`: Array of request entry IDs that must complete before this request can succeed (e.g., `["ent_002", "ent_005"]` — the initial page load and consent acceptance must happen first)
+- `cookies_required`: Array of cookie names that this request requires. Cross-reference with P7 cookie origin tracking (from prehalt).
+- `headers_required`: Array of header names that this request requires (e.g., `Authorization`, `X-CSRF-Token`, `Referer`)
+
+**At the end of Phase 5 (after P27), write a SYSTEM entry `HTTP_REQUEST_CHAIN`:**
+
+```
+Step 1: GET {target_url}
+  Sets cookies: [A1, A1S, GUCS, A3]
+  Returns: HTML page with initial content + crumb token
+  Required for: Steps 2, 3, 4
+
+Step 2: GET {pagination_endpoint}
+  Requires cookies: [A1, A1S, GUCS] (from Step 1)
+  Requires headers: [Referer: {target_url}]
+  Returns: JSON pagination data
+  Required for: Step 5
+
+Step 3: GET {item_detail_url}
+  Requires cookies: [A1, A1S, GUCS] (from Step 1)
+  Returns: HTML detail page with ld+json
+
+Step 4: GET {pagination_endpoint}?cursor={next_cursor}
+  Requires cookies: [A1, A1S, GUCS] (from Step 1)
+  Requires: cursor from Step 2 response
+  Returns: Next page of JSON pagination data
+```
+
+**This chain IS the recipe for building a scraper.** An analyser reading this chain knows exactly what to send, in what order, to get valid responses.
 
 ---
 

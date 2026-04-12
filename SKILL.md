@@ -160,6 +160,8 @@ Key outputs: CDP capture validated, DOM structure mapped, window globals extract
 
 Key outputs: content item types and selectors identified, pagination mechanism classified, pagination endpoint captured, search/filter forms discovered and probed.
 
+**Extraction path taxonomy applied (P3/P5):** Every identified field is classified by extraction path type (structured_data → semantic_html → aria_role → data_attribute → meta_content → class_semantic → class_hashed). Fields with only `class_hashed` paths are flagged as `[brittle]`. This taxonomy feeds into the Extraction Stability Matrix at P22.
+
 **Crawl trap protection (P10):** Date-based pagination stops at 1 month before latest content date; session/tracking parameter traps stop after 3 identical pages; opaque cursor caps at 5 pages.
 
 ### Phase 3: Content Item Entry (~3 cycles/item, min 3 items)
@@ -170,9 +172,13 @@ Key outputs: content item types and selectors identified, pagination mechanism c
 
 **Purpose:** Find APIs, tokens, and patterns not visible from surface browsing. Triggered by discoveries in earlier phases.
 
+**Extraction Stability Matrix output (at P22):** After Phase 4 completes, the log MUST contain a DOM_SNAPSHOT with context `stability_matrix` that maps every identified field to its best and fallback extraction paths, with stability risk ratings. Fields rated `stability_risk: HIGH` (no stable extraction path) MUST be explicitly flagged. This matrix is the single most actionable artifact for scraper construction.
+
 ### Phase 5: Request Replay (~5 cycles)
 
 **Purpose:** Determine what a scraper needs to send to get content — which headers, cookies, and tokens are required.
+
+**HTTP Request Chain output (at P27):** After Phase 5 completes, the log MUST contain a SYSTEM entry `HTTP_REQUEST_CHAIN` that documents the sequenced dependency map of all discovered requests. This chain is the recipe for building a scraper — it tells the analyser exactly what to send, in what order, with what headers and cookies. Combined with the `COOKIE_DEPENDENCY_MAP` from P7, the analyser has complete knowledge of the request acquisition sequence.
 
 ### Phase 6: Edge Case Battery (~5 cycles)
 
@@ -246,7 +252,7 @@ Single endpoint errors, page load failures, DOM snapshot timeouts, unexpected ed
 
 Budget is measured in **decision cycles** — one cycle = one LLM reasoning turn that results in an action. CDP passive capture does NOT consume cycles. → Full cycle accounting rules: `references/writing-protocol.md` → Cycle Accounting.
 
-- Default: 50 cycles (adjustable via site_brief.md)
+- Default: 60 cycles (adjustable via site_brief.md)
 - Content item entry: ~3 cycles/item, minimum 3 items
 - Hidden content clicks: max 3 per detail page
 - Re-investigation: 5 cycles per request item

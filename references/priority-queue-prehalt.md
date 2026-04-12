@@ -149,7 +149,37 @@ Take a complete DOM snapshot of the initial page state. This is your reference p
 
 **Capture:** Article count, root selectors, card selectors, embedded JSON blocks.
 
-**Why this matters:** Later steps (P9, P22) need a baseline DOM to compare against. Without this snapshot, you can't detect what changed or what's dynamic.
+**Extraction path type tagging:**
+
+For each content item field visible in the initial DOM, classify its extraction path type. This classification determines extraction stability — which selectors survive site redesigns and which break on every deploy.
+
+| Path Type | Priority | Pattern | Survives Deploy? |
+|-----------|----------|---------|-----------------|
+| `structured_data` | 1 (best) | ld+json, __NEXT_DATA__, embedded JSON | Always |
+| `semantic_html` | 2 | `<article>`, `<time datetime>`, `<h1>`, `<main>` | Mostly |
+| `aria_role` | 2 | `[role="article"]`, `[role="heading"]` | Mostly |
+| `data_attribute` | 3 | `[data-testid]`, `[data-cy]`, `[data-component]` | Often |
+| `meta_content` | 3 | `<meta name="description">`, `<meta property="og:*">` | Usually |
+| `class_semantic` | 4 | `.article-title`, `.post-body` | Sometimes |
+| `class_hashed` | 5 (worst) | `.yf-1a2b3c`, `.css-xyz123`, `._abc123` | Never |
+
+**How to detect:** Run this JS after snapshot to classify each field's best available path:
+
+```js
+const allClasses = new Set();
+document.querySelectorAll('[class]').forEach(el => {
+  el.classList.forEach(c => allClasses.add(c));
+});
+const hashedPattern = /^[a-z]{1,3}-[a-z0-9]{4,}$|^_[a-z0-9]{4,}$|^css-[a-z0-9]+$/;
+const hashedCount = [...allClasses].filter(c => hashedPattern.test(c)).length;
+const class_type = hashedCount > allClasses.size * 0.5 ? 'hashed' :
+                   hashedCount > allClasses.size * 0.2 ? 'mixed' : 'semantic';
+// For each content field: check ld+json (P5) → semantic tag → aria role → data-* → meta → semantic class → hashed class
+```
+
+**Log:** Include `extraction_path_types` array in the DOM_SNAPSHOT entry and set `class_type` field. For each identified field, note its best available path type.
+
+**Why this matters:** Yahoo Finance uses `yf-*` hashed classes that break on deploy. Wikipedia uses semantic HTML. The Guardian uses mixed. Without this classification, the agent logs `.yf-1a2b3c` as "stable" because it appears consistently — but it will break on the next deploy. This tagging feeds into P5 (field mapping), P15 (detail page mapping), and P22 (stability matrix).
 
 ---
 
@@ -220,6 +250,43 @@ Pages frequently embed structured data in `<script>` tags that isn't visible in 
 - `<script id="...">` with JSON content — site-specific embedded config or data.
 
 **Why this matters:** Embedded JSON is typically the "source of truth" that the framework uses to render the page. It's more reliable than scraping rendered text because it's the structured input, not the formatted output.
+
+**Field-to-extraction-path mapping:**
+
+When ld+json or other structured data is found, map EVERY field to its JSON path. This mapping is the single most valuable artifact for building stable scrapers — it tells the analyser exactly which path to use for each field, with fallback ordering.
+
+**For each ld+json block:**
+
+1. Parse the JSON fully. Extract `@type` to identify the schema (Article, NewsArticle, Product, etc.)
+2. List ALL fields with their JSON paths:
+
+```
+Schema: NewsArticle
+  headline → ld+json.headline [structured_data]
+  datePublished → ld+json.datePublished [structured_data]
+  author.name → ld+json.author.name [structured_data]
+  image.url → ld+json.image.url [structured_data]
+```
+
+3. **Cross-reference with P3 DOM snapshot** — for each field in the structured data, identify the DOM element that renders it. This creates a dual-path extraction map:
+
+```
+Field: headline
+  Best: ld+json.headline [structured_data]
+  Fallback: h1 [semantic_html]
+  Last resort: .yf-1abc23d [class_hashed] [brittle]
+
+Field: publish_date
+  Best: ld+json.datePublished [structured_data]
+  Fallback: time[datetime] [semantic_html]
+  Last resort: span.yf-date [class_hashed] [brittle]
+```
+
+4. **If ld+json is NOT present**, explicitly log: `"No structured data found. All extraction paths are DOM-based. Stability risk: HIGH."`
+
+**Log:** DOM_SNAPSHOT with context `embedded_json_N` MUST include `extraction_map` field containing the complete field-to-path mapping (see log-format.md).
+
+**Why this matters:** Without this mapping, an analyser building from the log would use hashed class selectors that break on deploy, when ld+json would have been stable forever. This is the #1 most valuable output for the downstream analyst.
 
 ---
 
@@ -308,6 +375,29 @@ Cookies carry session state, authentication tokens, consent preferences, and tra
 - Compare against `Set-Cookie` headers to identify JS-only cookies.
 
 **Why JS-only cookies matter:** They're often set by analytics or consent platforms and may be required for the server to return full content. If a cookie exists in JS but not in response headers, it's a client-side signal that the server might check on subsequent requests.
+
+**Cookie origin tracking:**
+
+For each cookie, record which HTTP response or JS execution set it. This is essential for constructing the HTTP request chain later — the analyser needs to know not just WHICH cookies exist, but WHERE they come from and in what ORDER they must be obtained.
+
+**Tracking method:**
+1. During P2 (initial navigation), CDP captures all `Set-Cookie` response headers. Map each cookie to the URL that set it.
+2. After navigation, use `CDP.Network.getCookies()` to find JS-only cookies (no corresponding `Set-Cookie` header). Note as `set_by: javascript`.
+
+**Log each cookie with additional field:**
+- `set_by_request`: The entry ID of the REQUEST that set this cookie (e.g., `ent_002`). Creates a linkable chain: "Cookie A was set by the request in ent_002, which was the initial page load."
+
+**Cookie dependency chain notation:**
+
+After all cookies are logged, write a SYSTEM entry `COOKIE_DEPENDENCY_MAP` that summarizes the acquisition order:
+
+```
+Step 1: GET / → sets cookies [A1, A1S, GUCS, A3]
+Step 2: GET /consent → sets cookies [consentStatus, euconsent-v2]
+Step 3: GET /api/data → requires cookies [A1, A1S] → sets cookie [apiSession]
+```
+
+This chain tells the analyser exactly which cookies to obtain and in what order. Without it, the analyser knows WHICH cookies exist but not WHERE they come from or in what ORDER they must be obtained.
 
 ---
 

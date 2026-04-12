@@ -109,7 +109,7 @@ notes:                Card layout uses hashed Tailwind classes; data-attribute s
 | `id` | string | `ent_NNN` or `ent_auto_NNN` |
 | `phase` | integer | Phase number |
 | `source` | enum | `cdp_passive` \| `agent_active` \| `system` |
-| `context` | enum | `initial_load` \| `post_pagination_N` \| `content_entry_N` \| `article_entry_N` \| `mobile_viewport` \| `pagination_mechanism_identification` \| `content_structure` \| `page_chrome` \| `window_globals` \| `embedded_json_N` \| `raw_html_sample` \| `service_workers` \| `framework_fingerprint` \| `analytics_payload` \| `timestamp_comparison` \| `url_type_analysis` \| `duplicate_detection` \| `encoding_check` \| `compression_check` \| `fingerprinting` \| `head_analysis` \| `csp_analysis` \| `shadow_dom_content` \| `spa_state_change` \| `a_b_compare` \| `hidden_content_revealed` \| `custom` |
+| `context` | enum | `initial_load` \| `post_pagination_N` \| `content_entry_N` \| `article_entry_N` \| `mobile_viewport` \| `pagination_mechanism_identification` \| `content_structure` \| `page_chrome` \| `window_globals` \| `embedded_json_N` \| `raw_html_sample` \| `service_workers` \| `framework_fingerprint` \| `analytics_payload` \| `timestamp_comparison` \| `url_type_analysis` \| `duplicate_detection` \| `encoding_check` \| `compression_check` \| `fingerprinting` \| `head_analysis` \| `csp_analysis` \| `shadow_dom_content` \| `spa_state_change` \| `a_b_compare` \| `hidden_content_revealed` \| `stability_matrix` \| `custom` |
 | `render_type` | enum | `SSR` \| `CSR` \| `hybrid` \| `RSC` \| `UNKNOWN` \| `N/A` |
 | `embedded_data_blocks` | array | Objects with `selector`, `format`, `size_estimate` |
 | `article_count_visible` | integer \| null | Number of visible content items |
@@ -119,6 +119,7 @@ notes:                Card layout uses hashed Tailwind classes; data-attribute s
 | `stable_selectors` | array | Selectors likely to survive redesigns |
 | `brittle_selectors` | array | Selectors likely to break on redesigns |
 | `exclusion_selectors` | array | Selectors for non-content chrome to exclude |
+| `extraction_map` | object \| null | Field-to-extraction-path mapping. Keys are field names (e.g., "title", "author"). Values are objects with `best_path` (string), `best_type` (enum: `structured_data` \| `semantic_html` \| `aria_role` \| `data_attribute` \| `meta_content` \| `class_semantic` \| `class_hashed`), `fallbacks` (array of {path, type}), and `stability_risk` (enum: `LOW` \| `MEDIUM` \| `HIGH`). `null` if not yet mapped. |
 | `notes` | string | Factual observations about DOM structure |
 
 ---
@@ -163,6 +164,7 @@ notes:                Google Analytics cookie; set on initial page load
 | `sameSite` | string | `Strict` \| `Lax` \| `None` \| `unknown` |
 | `inferred_purpose` | enum | `tracking` \| `session` \| `crumb` \| `consent` \| `auth` \| `analytics` \| `unknown` |
 | `set_by` | enum | `page_load` \| `consent_flow` \| `auth_flow` \| `api_response` \| `javascript` \| `unknown` |
+| `set_by_request` | string \| null | Entry ID of the REQUEST that set this cookie (e.g., `ent_002`). Creates a linkable chain for cookie origin tracking. `null` if source is JS-only or unknown. |
 | `notes` | string | Factual observations |
 
 ---
@@ -246,6 +248,9 @@ anomalies:            ["Rate limit returns JSON error body instead of HTML"]
 | `result` | string | What happened — factual, no conclusions |
 | `diff_from_normal` | string \| null | How this differs from baseline behavior |
 | `anomalies` | array | See Anomaly Field Convention. Empty `[]` if none. |
+| `prerequisite_requests` | array \| null | Entry IDs of requests that must complete before this one. `null` if no dependencies. |
+| `cookies_required` | array \| null | Cookie names required for this request to succeed. `null` if not tested. |
+| `headers_required` | array \| null | Header names required for this request to succeed (e.g., `Authorization`, `Referer`). `null` if not tested. |
 
 ---
 
@@ -271,7 +276,7 @@ details:              { "url": "https://example.com", "loadTime_ms": 1432 }
 | `id` | string | `ent_NNN` or `ent_auto_NNN` |
 | `phase` | integer | Phase number |
 | `source` | enum | `cdp_passive` \| `agent_active` \| `system` |
-| `event` | enum | `navigated` \| `consent_handled` \| `budget_status` \| `blocker_detected` \| `investigation_complete` \| `auto_exclude` \| `phase_complete` \| `custom` \| `retry_transient` \| `permanent_error` \| `degraded` \| `robots_txt_disallow` \| `cdp_filter_switch` \| `cdp_capture_limit_reached` \| `cdp_health_check` \| `geo_requirement_unmet` \| `unexpected_domain_redirect` \| `browser_recovery` \| `empty_content_state` \| `max_pages_reached` \| `ua_blocked_by_robots_txt` \| `probe_skipped_robots_txt` \| `sitemap_classification` \| `search_form_inventory` \| `search_form_skipped_stateful` \| `crawl_trap_boundary` \| `crawl_trap_suspected` \| `errata` \| `custom` |
+| `event` | enum | `navigated` \| `consent_handled` \| `budget_status` \| `blocker_detected` \| `investigation_complete` \| `auto_exclude` \| `phase_complete` \| `custom` \| `retry_transient` \| `permanent_error` \| `degraded` \| `robots_txt_disallow` \| `cdp_filter_switch` \| `cdp_capture_limit_reached` \| `cdp_health_check` \| `geo_requirement_unmet` \| `unexpected_domain_redirect` \| `browser_recovery` \| `empty_content_state` \| `max_pages_reached` \| `ua_blocked_by_robots_txt` \| `probe_skipped_robots_txt` \| `sitemap_classification` \| `search_form_inventory` \| `search_form_skipped_stateful` \| `crawl_trap_boundary` \| `crawl_trap_suspected` \| `errata` \| `cookie_dependency_map` \| `http_request_chain` \| `custom` |
 | `description` | string | Human-readable factual description |
 | `details` | object \| null | Structured key-value pairs relevant to the event |
 

@@ -102,6 +102,31 @@ Skip content (log tag existence only):
 Skip elements with class containing:
   'ad', 'banner', 'footer', 'cookie', 'popup'
   (log element existence only)
+
+Element classification during snapshots:
+
+When taking a DOM snapshot, classify each significant element by its extraction path type. This classification feeds into the `extraction_map` field in DOM_SNAPSHOT entries and the extraction stability taxonomy used throughout the investigation.
+
+```js
+// Run after DOM snapshot to classify elements
+function classifyElement(el) {
+  const classes = Array.from(el.classList || []);
+  const hashedPattern = /^[a-z]{1,3}-[a-z0-9]{4,}$|^_[a-z0-9]{4,}$|^css-[a-z0-9]+$/;
+  const hasTestId = el.hasAttribute('data-testid') || el.hasAttribute('data-cy');
+  const hasAriaRole = el.hasAttribute('role');
+  const isSemantic = ['ARTICLE','MAIN','NAV','HEADER','FOOTER','SECTION','ASIDE','TIME'].includes(el.tagName);
+
+  return {
+    tag: el.tagName,
+    class_type: classes.filter(c => hashedPattern.test(c)).length > classes.length * 0.5 ? 'hashed' :
+                classes.length === 0 ? 'none' : 'semantic',
+    best_extraction_type: isSemantic ? 'semantic_html' :
+                          hasAriaRole ? 'aria_role' :
+                          hasTestId ? 'data_attribute' :
+                          classes.filter(c => hashedPattern.test(c)).length > 0 ? 'class_hashed' :
+                          'class_semantic'
+  };
+}
 ```
 
 ---
