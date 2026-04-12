@@ -144,7 +144,7 @@ After the investigation completes, run the compaction procedure to produce a cle
 
 ## Investigation Flow
 
-The investigation proceeds through priority phases. Each phase has a purpose and a budget allocation. Read `references/priority-queue.md` for the detailed step-by-step (P1–P32). The overview here tells you the WHY; the reference tells you the HOW.
+The investigation proceeds through priority phases. Each phase has a purpose and a budget allocation. Read `references/priority-queue-prehalt.md` for steps P0–P13c (before the first-pass halt) and `references/priority-queue-posthalt.md` for steps P14–P33+ (after resumption). The overview here tells you the WHY; the references tell you the HOW.
 
 ### Phase 0–1: Mandatory Baseline (~8 cycles)
 
@@ -285,6 +285,7 @@ FIRST-PASS HALT (after P13 completes):
                   [replay (P23-P27)] [edge cases (P28-P32)]
       Awaiting instruction."
   4. STOP. Do NOT proceed unless operator says to continue.
+  5. When resuming: switch to references/priority-queue-posthalt.md
 ```
 
 **Exceptions:** The halt does NOT apply during re-investigation (s2_gaps.md provided) or when the operator explicitly says "continue investigation" or "run full investigation."
@@ -330,9 +331,10 @@ The detailed procedures live in reference files. Read them when you need the HOW
 | File | Content | When to Read |
 |------|---------|-------------|
 | `references/writing-protocol.md` | Phase gates, output channel discipline, reference read schedule, banned phrases, cycle accounting, quick-write stubs, observation protocol | Before starting the investigation AND at each phase gate |
-| `references/priority-queue.md` | Detailed P1–P32 steps, sub-steps, JS code, detection logic | Before starting each phase — read the relevant section |
+| `references/priority-queue-prehalt.md` | Detailed P0–P13c steps, sub-steps, JS code, detection logic | Before starting investigation + before each phase up to P13 |
+| `references/priority-queue-posthalt.md` | Detailed P14–P33+ steps, sub-steps, JS code, detection logic | After operator resumes + before each phase from P14 onward |
 | `references/log-format.md` | Entry types, field definitions, body capture rules, errata procedure | When writing any log entry — keep open as reference |
 | `references/compaction.md` | Post-investigation log compaction procedure | After investigation completes, before handoff |
 | `references/cdp-infrastructure.md` | CDP domain setup, health validation, capture filter, warm-up, volume management | During Phase 0 setup and when CDP issues arise |
 
-**Progressive disclosure model:** This SKILL.md tells you WHY and WHAT. The references tell you HOW. You should not need to read all references upfront — read `references/writing-protocol.md` first, then read the relevant section of `references/priority-queue.md` before each phase, and consult `references/log-format.md` when writing entries.
+**Progressive disclosure model:** This SKILL.md tells you WHY and WHAT. The references tell you HOW. You should not need to read all references upfront — read `references/writing-protocol.md` first, then read the relevant section of `references/priority-queue-prehalt.md` (for phases 0–2) or `references/priority-queue-posthalt.md` (for phases 3–8) before each phase, and consult `references/log-format.md` when writing entries.

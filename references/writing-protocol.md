@@ -84,7 +84,7 @@ You must re-read reference files at these mandatory points:
 | Before each phase gate (P8, P13, P16, P22, P27, P32) | This file → §1 Phase Gates | Checklist reminder before writing |
 | Before writing any entry | `references/log-format.md` | Ensure entry matches the spec — required fields, correct types |
 | When D2:State shows context_risk: HIGH | `s1_log.md` (D2 + relevant D1) | Recover from context loss |
-| Before Phase 4 (deep exploration) | `references/priority-queue.md` §Phase 4 | Deep exploration steps are conditional — re-read to know which apply |
+| Before Phase 4 (deep exploration) | `references/priority-queue-posthalt.md` §Phase 4 | Deep exploration steps are conditional — re-read to know which apply |
 | When entering Phase 5 (request replay) | `references/log-format.md` → REQUEST type | Replay entries require complete req_headers/res_headers |
 | After investigation completes | `references/compaction.md` | Compaction procedure for final log |
 
@@ -161,7 +161,7 @@ Work on one phase at a time. Do not:
 
 When moving from one phase to the next:
 1. Complete the current phase gate (see §1).
-2. Read the next phase section in `references/priority-queue.md`.
+2. Read the next phase section: `references/priority-queue-prehalt.md` for phases 0–2, or `references/priority-queue-posthalt.md` for phases 3–8.
 3. Then begin the new phase.
 
 Do not "preview" the next phase while still completing the current one. This leads to premature observations that may be wrong because the current phase hasn't established the necessary context.

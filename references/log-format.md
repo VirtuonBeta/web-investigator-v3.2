@@ -460,16 +460,16 @@ Phase 7: Re-investigation (only if reinvestigation requests exist)
 
 Priority queue step → Phase number:
 
-| Priority Queue Steps | Phase | Description |
-|---|---|---|
-| P1 | 0 | Pre-flight |
-| P2–P8 | 1 | Baseline |
-| P9–P13 | 2 | Content discovery |
-| P14–P16 | 3 | Content item inspection |
-| P17–P22 | 4 | Deep exploration |
-| P23–P27 | 5 | Request replay |
-| P28–P32 | 6 | Edge case battery |
-| P33+ | 7 | Re-investigation |
+| Priority Queue Steps | Phase | Description | Reference File |
+|---|---|---|---|
+| P1 | 0 | Pre-flight | prehalt |
+| P2–P8 | 1 | Baseline | prehalt |
+| P9–P13 | 2 | Content discovery | prehalt |
+| P14–P16 | 3 | Content item inspection | posthalt |
+| P17–P22 | 4 | Deep exploration | posthalt |
+| P23–P27 | 5 | Request replay | posthalt |
+| P28–P32 | 6 | Edge case battery | posthalt |
+| P33+ | 7 | Re-investigation | posthalt |
 
 ---
 

@@ -43,8 +43,11 @@ Tell the agent to:
 web-investigator/
 ├── SKILL.md                      # Main agent config — identity, output contract, flow overview
 ├── references/
-│   ├── priority-queue.md         # Detailed P1–P32 steps (the HOW)
+│   ├── priority-queue-prehalt.md # Detailed P0–P13c steps — before first-pass halt (the HOW)
+│   ├── priority-queue-posthalt.md # Detailed P14–P33+ steps — after operator resumes (the HOW)
+│   ├── writing-protocol.md       # Phase gates, banned phrases, cycle accounting
 │   ├── log-format.md             # Entry types, fields, body capture rules
+│   ├── compaction.md             # Post-investigation log compaction
 │   └── cdp-infrastructure.md     # CDP setup, capture filter, volume management
 ├── site-brief-template.md        # Template for per-site input
 ├── examples/
@@ -59,7 +62,7 @@ The architecture uses three levels of information:
 | Level | File | When to Read |
 |-------|------|-------------|
 | Overview | SKILL.md | Once at startup — tells you WHO you are, WHAT you produce, and WHY |
-| Procedure | references/priority-queue.md | Before each phase — tells you HOW to execute each step |
+| Procedure | references/priority-queue-prehalt.md (P0–P13c), references/priority-queue-posthalt.md (P14–P33+) | Before each phase — tells you HOW to execute each step |
 | Specification | references/log-format.md, cdp-infrastructure.md | When writing entries or configuring CDP — tells you the exact format |
 
 ### Key Design Decisions (v3.0)
