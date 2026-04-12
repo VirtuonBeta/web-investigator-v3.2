@@ -1,6 +1,6 @@
 # Priority Queue — Detailed Steps (P1–P32+)
 
-Reference file for the Web Investigator (Agent 1 v3.0). Read the relevant section before starting each phase.
+Reference file for the Web Investigator (Agent 1 v3.1). Read the relevant section before starting each phase.
 
 This file provides the HOW for each investigation step. The WHY lives in SKILL.md.
 
@@ -689,6 +689,25 @@ After examining a detail page, navigate back to the listing page. This observati
 
 ---
 
+### [P16b] Site Brief Field Verification
+
+After completing P14-P16 for at least 3 items, cross-reference your findings against the fields in `site_brief.md`. This ensures the investigation actually covers what the operator asked about.
+
+**Procedure:**
+
+1. Re-read `site_brief.md` — specifically the `target_data` and `questions` fields.
+2. For each field/question in the brief, check: did your observations so far address it?
+3. If a field is unanswered: note it in D0 as an open question.
+4. If a field is answered: note the entry ID(s) that provide the answer.
+
+**Log:** SYSTEM entry with event `custom`, description "Site brief field verification", details containing a mapping of `{brief_field: entry_id_or_OPEN}`.
+
+**Why this matters:** Without this check, it's easy to complete the investigation and realize you never answered the operator's actual question. The brief may ask about auth mechanisms while you spent all your budget on content structure. This step ensures alignment between investigation output and operator needs.
+
+**Does NOT consume a full decision cycle** — it's a verification step that takes one re-read of the brief.
+
+---
+
 ## Phase 4: Deep Exploration (~10 cycles, conditional)
 
 > **Phase gate reminder:** Before starting Phase 4, verify you have: completed P14-P16 for at least 3 items, identified the pagination API (P11-P12), and tested replay (P13). Phase 4 steps are conditional — only run the ones triggered by your Phase 1-3 observations. Don't burn cycles on steps that aren't relevant.
@@ -793,6 +812,30 @@ GraphQL APIs expose a single endpoint with a rich query language. Understanding 
 - Test with different variables to explore the response space.
 
 **Why this matters:** A GraphQL endpoint is essentially an open API to the site's entire data model. If introspection is enabled, you can discover the full schema. Even without introspection, capturing the operations the frontend uses gives you a complete set of data access patterns.
+
+---
+
+### [P21b] Multi-Query Validation
+
+When you discover a search or filter API endpoint, test it with **at least 3 different queries** before generalizing about its behavior. A single query may produce a result that doesn't represent the endpoint's full behavior.
+
+**Procedure:**
+
+1. Take the discovered search/filter API endpoint from P13c, P17, or P21.
+2. Execute 3 queries with different parameters:
+   - **Broad query:** minimal or no filters — should return many results.
+   - **Specific query:** narrow filter — should return few or zero results.
+   - **Edge query:** boundary value, special character, or empty string.
+3. Compare response schemas across all 3 queries:
+   - Same schema? → The API is consistent; one query is representative.
+   - Different schema? → The API returns different structures for different queries; log each variant.
+   - Errors on edge query? → The API has input validation; log the error format.
+
+**Log:** REQUEST entries for each query. If schemas differ, also log a SYSTEM entry noting the inconsistency.
+
+**Why this matters:** In the Yahoo Finance investigation, the agent tested the search API with one query ("bitcoin"), got results, and generalized that the API works for all queries. A second query ("xyznotreal") would have revealed that the API returns a different schema for zero-result queries. Without multi-query validation, you risk building an extraction schema that only works for one type of response.
+
+**Budget:** 2 additional decision cycles (the broad query may already be done; the specific and edge queries are new).
 
 ---
 

@@ -1,6 +1,6 @@
-# Log Format Specification `v3.0`
+# Log Format Specification `v3.1`
 
-Reference file for the Web Investigator (Agent 1 v3.0). Defines the typed entry format for s1_log.md.
+Reference file for the Web Investigator (Agent 1 v3.1). Defines the typed entry format for s1_log.md.
 
 Agent 1 writes these entries. Agent 2 reads them. Every entry must follow this spec exactly.
 
@@ -271,7 +271,7 @@ details:              { "url": "https://example.com", "loadTime_ms": 1432 }
 | `id` | string | `ent_NNN` or `ent_auto_NNN` |
 | `phase` | integer | Phase number |
 | `source` | enum | `cdp_passive` \| `agent_active` \| `system` |
-| `event` | enum | `navigated` \| `consent_handled` \| `budget_status` \| `blocker_detected` \| `investigation_complete` \| `auto_exclude` \| `phase_complete` \| `custom` \| `retry_transient` \| `permanent_error` \| `degraded` \| `robots_txt_disallow` \| `cdp_filter_switch` \| `cdp_capture_limit_reached` \| `cdp_health_check` \| `geo_requirement_unmet` \| `unexpected_domain_redirect` \| `browser_recovery` \| `empty_content_state` \| `max_pages_reached` \| `ua_blocked_by_robots_txt` \| `probe_skipped_robots_txt` \| `sitemap_classification` \| `search_form_inventory` \| `search_form_skipped_stateful` \| `crawl_trap_boundary` \| `crawl_trap_suspected` \| `custom` |
+| `event` | enum | `navigated` \| `consent_handled` \| `budget_status` \| `blocker_detected` \| `investigation_complete` \| `auto_exclude` \| `phase_complete` \| `custom` \| `retry_transient` \| `permanent_error` \| `degraded` \| `robots_txt_disallow` \| `cdp_filter_switch` \| `cdp_capture_limit_reached` \| `cdp_health_check` \| `geo_requirement_unmet` \| `unexpected_domain_redirect` \| `browser_recovery` \| `empty_content_state` \| `max_pages_reached` \| `ua_blocked_by_robots_txt` \| `probe_skipped_robots_txt` \| `sitemap_classification` \| `search_form_inventory` \| `search_form_skipped_stateful` \| `crawl_trap_boundary` \| `crawl_trap_suspected` \| `errata` \| `custom` |
 | `description` | string | Human-readable factual description |
 | `details` | object \| null | Structured key-value pairs relevant to the event |
 
@@ -552,3 +552,47 @@ url: "https://example.com/final-path"
 ```
 
 Each hop includes the redirect status code and the URL redirected to. The final entry in the chain shows the terminal status and URL, which must match the top-level `url` and `res_status` fields.
+
+---
+
+## Entry Corrections (Errata)
+
+Entries are append-only — you never modify or delete a previous entry. If you discover an error in a previously written entry, write a correction using a SYSTEM entry with `event: errata`.
+
+### Errata Entry Format
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2025-01-15T12:30:00.000Z  SYSTEM
+
+id:                   ent_055
+phase:                4
+source:               system
+event:                errata
+description:          Correction to ent_012
+details:
+  corrects_entry:     ent_012
+  field:              inferred_purpose
+  original_value:     tracking
+  corrected_value:    session
+  reason:             Cookie rotates on each request; matches session pattern, not tracking
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+### Errata Rules
+
+1. **One correction per errata entry.** If multiple fields are wrong, write multiple errata entries.
+2. **Always reference the original entry ID** in `corrects_entry`.
+3. **Always state the reason.** The reason must be a raw observation, not analysis. (e.g., "Cookie rotates on each request" is valid; "Cookie is clearly a session cookie" is analysis.)
+4. **Errata are applied during compaction.** During the investigation, the original entry remains unchanged. See `references/compaction.md`.
+5. **Errata for missing required fields** should include the missing field's value in `corrected_value`.
+
+### Common Errata Scenarios
+
+| Scenario | Example |
+|----------|--------|
+| Wrong `inferred_purpose` on COOKIE entry | Originally tagged as `tracking`, but subsequent observation showed it rotates (session) |
+| Missing required field in REQUEST entry | `req_headers` was omitted at P2; adding it now after re-reading spec |
+| Wrong `render_type` in DOM_SNAPSHOT | Originally classified as `SSR`, but P6 raw HTML comparison showed it's `hybrid` |
+| Incorrect `source` classification | Logged as `cdp_passive` but was actually `agent_active` |
+| Timestamp error | Entry was written with incorrect timestamp (rare; use current time as corrected_value) |
