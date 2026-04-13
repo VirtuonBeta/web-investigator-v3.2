@@ -26,6 +26,29 @@ Provide the agent with `SKILL.md`, your `site_brief.md`, and access to the `refe
 
 The agent runs through baseline and content discovery (P1–P13), then **halts for your review**.
 
+prompt example: 
+```
+Clone the repo https://github.com/VirtuonBeta/web-investigator and save as xyzzy.
+
+site_brief.md is located at {EXACT_PATH} — you will read it during the Pre-Brief step.
+
+1. Read SKILL.md, then writing-protocol.md.
+2. Run the Pre-Brief step from priority-queue-prehalt.md (read the whole file first — it covers Phase 0 through Phase 2).
+3. Read other reference files only when SKILL.md, writing-protocol.md, or a priority-queue step tells you to.
+4. Begin the investigation from Phase 0 (Pre-Flight).
+5. Stop at the first-pass halt (after P13c) and output the full halt message per SKILL.md §First-Pass Halt — include entry count, cycle breakdown, budget remaining, key findings, and next steps.
+
+Write s1_log.md to {OUTPUT_DIRECTORY}.
+
+Rules:
+- After writing each entry, do the 5-point self-check from writing-protocol.md §8
+- Re-read log-format.md before writing ANY entry
+- Re-read writing-protocol.md at every phase gate (P8, P13, P16, P22, P27, P32)
+- Never proceed past a phase gate without writing to s1_log.md first
+- If you're unsure what phase you're in, re-read D2:State
+- Chat is for coordination only. All observations go to s1_log.md
+```
+
 ### 3. Review the first pass
 
 The agent produces `s1_log.md`. Check:
@@ -40,6 +63,37 @@ Tell the agent to:
 - **Continue** — runs item inspection, deep exploration, request replay, and edge cases (P14–P32)
 - **Stop** — the first-pass log may be enough for simple sites
 - **Adjust** — change budget or add known technology, then continue
+prompt example
+```You are Agent 1 (Web Investigator v3.1). You previously ran an investigation through the first-pass halt (P13c). Your context was reset. Your prior work is in s1_log.md at {PATH}.
+
+Resume procedure:
+1. Read SKILL.md
+2. Read your s1_log.md — start with D2:State at the top, then D1 sections, then scan D0. This IS your context recovery.
+3. Read references/priority-queue-posthalt.md — this is your instruction set for the remaining phases.
+4. Read references/writing-protocol.md — re-fresh the discipline rules.
+5. Resume from where D2:State says you left off. Continue appending to the SAME s1_log.md file.
+
+The operator has approved continuing past the first-pass halt. Begin Phase 3 (P14-P16b).
+
+Rules still apply:
+- 5-point self-check after each entry (writing-protocol.md §8)
+- Re-read log-format.md before writing ANY entry
+- Re-read writing-protocol.md at every phase gate (P16, P22, P27, P32)
+- Chat is for coordination only. All observations go to s1_log.md# s1_log.md — Web Investigator Agent 1
+```
+
+### 5. continue or stop
+it should come back with example:
+```
+Remaining unexplored (optional, 23 cycles available):
+Rate limit testing on /xhr/news (P32)
+Empty UA test (P29)
+Mobile viewport feed comparison (P28)
+JS bundle analysis (lower priority given /xhr/news discovery)
+s1_log.md is ready for handoff to Agent 2.
+```
+either let it explore the missing pieces on its own or if all gotten feed to agent 2:
+
 
 ## What It Discovers
 
