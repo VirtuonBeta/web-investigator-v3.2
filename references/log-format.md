@@ -1,6 +1,6 @@
-# Log Format Specification `v3.1`
+# Log Format Specification `v3.2`
 
-Reference file for the Web Investigator (Agent 1 v3.1). Defines the typed entry format for s1_log.md.
+Reference file for the Web Investigator (Agent 1 v3.2). Defines the typed entry format for s1_log.md.
 
 Agent 1 writes these entries. Agent 2 reads them. Every entry must follow this spec exactly.
 
@@ -16,6 +16,26 @@ Agent 1 writes these entries. Agent 2 reads them. Every entry must follow this s
 6. No free-form prose in data fields. Notes and descriptions are fine. Conclusions are not.
 7. Append only. Never modify or delete entries.
 8. Truncation must be marked: `[TRUNCATED at N chars of total M]`
+
+---
+
+## Extraction Path Taxonomy
+
+For each content item field, classify its extraction path type. This classification determines extraction stability — which selectors survive site redesigns and which break on every deploy.
+
+| Path Type | Priority | Pattern | Survives Deploy? |
+|-----------|----------|---------|-----------------|
+| `structured_data` | 1 (best) | ld+json, __NEXT_DATA__, embedded JSON | Always |
+| `semantic_html` | 2 | `<article>`, `<time datetime>`, `<h1>`, `<main>` | Mostly |
+| `aria_role` | 2 | `[role="article"]`, `[role="heading"]` | Mostly |
+| `data_attribute` | 3 | `[data-testid]`, `[data-cy]`, `[data-component]` | Often |
+| `meta_content` | 3 | `<meta name="description">`, `<meta property="og:*">` | Usually |
+| `class_semantic` | 4 | `.article-title`, `.post-body` | Sometimes |
+| `class_hashed` | 5 (worst) | `.yf-1a2b3c`, `.css-xyz123`, `._abc123` | Never |
+
+Fields with only `class_hashed` paths are flagged as `[brittle]`. Fields with NO column showing "universal" in the stability matrix are `stability_risk: HIGH`.
+
+This taxonomy is referenced by: P3 (initial extraction tagging), P5 (field-to-path mapping), P15 (detail page mapping), P22 (stability matrix). All extraction path references in the priority-queue files point to this canonical definition.
 
 ---
 
@@ -52,6 +72,10 @@ anomalies:            []
 notes:                Paginated API endpoint; returns full article list
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
+
+**Core fields (ALWAYS present):** id, phase, source, method, url, res_status, res_body_type, notes
+
+**Conditional fields (fill if FIRST entry of this type, or gap of 10+ entries since last of this type, or the field has non-null/interesting data):** trigger, resource_type, req_headers, req_body, res_headers, res_body_sample, res_body_schema, res_body_truncated, res_body_total_size, res_size_bytes, ttlfb_ms, redirect_chain, anomalies
 
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
@@ -104,6 +128,10 @@ notes:                Card layout uses hashed Tailwind classes; data-attribute s
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
+**Core fields (ALWAYS present):** id, phase, source, context, render_type, notes
+
+**Conditional fields (fill if FIRST entry of this type, or gap of 10+ entries since last of this type, or the field has non-null/interesting data):** embedded_data_blocks, article_count_visible, root_selector, card_selector, class_type, stable_selectors, brittle_selectors, exclusion_selectors, extraction_map
+
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
 | `id` | string | `ent_NNN` or `ent_auto_NNN` |
@@ -148,6 +176,10 @@ set_by:               page_load
 notes:                Google Analytics cookie; set on initial page load
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
+
+**Core fields (ALWAYS present):** id, phase, source, name, domain, notes
+
+**Conditional fields (fill if FIRST entry of this type, or gap of 10+ entries since last of this type, or the field has non-null/interesting data):** value_sample, path, expires, httpOnly, secure, sameSite, inferred_purpose, set_by, set_by_request
 
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
@@ -197,6 +229,10 @@ notes:                auth_token appears to be a JWT; consent_settings controls 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
+**Core fields (ALWAYS present):** id, phase, source, keys, entry_count, notes
+
+**Conditional fields (fill if FIRST entry of this type, or gap of 10+ entries since last of this type, or the field has non-null/interesting data):** notable_entries, auth_related_keys, content_related_keys, tracking_keys, changed_since_last
+
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
 | `id` | string | `ent_NNN` or `ent_auto_NNN` |
@@ -234,6 +270,10 @@ diff_from_normal:     Normal: 200 with JSON body. Edge: 429 with {"error":"rate_
 anomalies:            ["Rate limit returns JSON error body instead of HTML"]
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
+
+**Core fields (ALWAYS present):** id, phase, source, test_id, description, result, notes
+
+**Conditional fields (fill if FIRST entry of this type, or gap of 10+ entries since last of this type, or the field has non-null/interesting data):** method, url, cookies_sent, diff_from_normal, anomalies, prerequisite_requests, cookies_required, headers_required, fingerprint_type, fastest_tested_rate
 
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
@@ -273,6 +313,10 @@ details:              { "url": "https://example.com", "loadTime_ms": 1432 }
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
+**Core fields (ALWAYS present):** id, phase, source, event, description, notes
+
+**Conditional fields (fill if FIRST entry of this type, or gap of 10+ entries since last of this type, or the field has non-null/interesting data):** details
+
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
 | `id` | string | `ent_NNN` or `ent_auto_NNN` |
@@ -305,6 +349,10 @@ requests_made:        47
 notes:                Auth confirmed via session cookie; no token rotation observed
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
+
+**Core fields (ALWAYS present):** id, phase, source, current_url, auth_state, notes
+
+**Conditional fields (fill if FIRST entry of this type, or gap of 10+ entries since last of this type, or the field has non-null/interesting data):** cookies_count, new_cookies_since_last, auth_method, pages_visited, requests_made
 
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
@@ -354,6 +402,10 @@ notes:                 Pagination found; API surface is moderate
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
+**Core fields (ALWAYS present):** id, phase, source, status, cycles_used, cycles_remaining, notes
+
+**Conditional fields (fill if FIRST entry of this type, or gap of 10+ entries since last of this type, or the field has non-null/interesting data):** cdp_requests_captured, cdp_domains_observed, api_endpoints_detected, js_bundles_captured, js_bundles_analyzed, pagination_endpoint_found, auth_tokens_detected, websocket_connections, graphql_endpoints, content_items_inspected, complexity_assessment, blockers_hit, remaining_unexplored, reinvestigation_recommendations
+
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
 | `id` | string | `ent_NNN` or `ent_auto_NNN` |
@@ -400,6 +452,10 @@ confidence_in_hypothesis: LOW
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
+**Core fields (ALWAYS present):** id, phase, source, description, raw_evidence, notes
+
+**Conditional fields (fill if FIRST entry of this type, or gap of 10+ entries since last of this type, or the field has non-null/interesting data):** hypothesis, resolution_test, related_entries, confidence_in_hypothesis
+
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
 | `id` | string | `ent_NNN` or `ent_auto_NNN` |
@@ -434,6 +490,10 @@ impact_hypothesis:    Service worker caches HTML shell; may serve stale content 
 notes:                Uses Workbox; precache manifest includes 14 assets
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
+
+**Core fields (ALWAYS present):** id, phase, source, scope, script_url, state, notes
+
+**Conditional fields (fill if FIRST entry of this type, or gap of 10+ entries since last of this type, or the field has non-null/interesting data):** intercepts_fetch, cache_names, impact_hypothesis
 
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
@@ -592,8 +652,9 @@ details:
 1. **One correction per errata entry.** If multiple fields are wrong, write multiple errata entries.
 2. **Always reference the original entry ID** in `corrects_entry`.
 3. **Always state the reason.** The reason must be a raw observation, not analysis. (e.g., "Cookie rotates on each request" is valid; "Cookie is clearly a session cookie" is analysis.)
-4. **Errata are applied during compaction.** During the investigation, the original entry remains unchanged. See `references/compaction.md`.
-5. **Errata for missing required fields** should include the missing field's value in `corrected_value`.
+4. **Errata must cite a raw observation.** The `reason` field must include a specific raw observation that supports the correction, not a feeling or intuition. If you cannot articulate WHY the original was wrong using a specific raw observation, do NOT write errata — add a new observation entry instead.
+5. **Errata are applied during compaction.** During the investigation, the original entry remains unchanged. See `references/compaction.md`.
+6. **Errata for missing required fields** should include the missing field's value in `corrected_value`.
 
 ### Common Errata Scenarios
 

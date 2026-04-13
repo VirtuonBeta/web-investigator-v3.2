@@ -2,6 +2,8 @@
 
 Reference file for the Web Investigator (Agent 1 v3.2). CDP passive capture layer configuration and management.
 
+**Version:** 3.2
+
 Read this during Phase 0 setup and when CDP issues arise.
 
 **Phase reference:** Setup steps (Pre-P1) are in `references/priority-queue-prehalt.md`. Post-halt steps that use CDP data are in `references/priority-queue-posthalt.md`.
@@ -109,6 +111,14 @@ Every request passing the filter is logged as a `REQUEST` entry per log-format.m
 | `ttfb_ms` | Time to first byte |
 | `redirect_chain` | Array of `{url, status}` for every hop |
 | `trigger` | Auto-detected: `page_load` \| `scroll` \| `click` \| `timer` \| `websocket_message` \| `unknown` |
+
+---
+
+## 4b. SvelteKit Fetch Capture Limitation
+
+SvelteKit (detected by `data-svelte-h` attributes or `_app/immutable/` asset paths) binds `window.fetch` at module import time, before any runtime monkey-patching can take effect. Standard fetch interception (overriding `window.fetch`) will NOT capture SvelteKit network requests.
+
+For SvelteKit sites, use CDP `Network.requestWillBeSent` events instead of JS-level interception, or reverse-engineer request bodies from JS bundle analysis. This limitation cost ~4-5 decision cycles on a Yahoo Finance investigation before the agent discovered it.
 
 ---
 

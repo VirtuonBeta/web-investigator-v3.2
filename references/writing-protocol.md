@@ -1,8 +1,55 @@
-# Writing Protocol `v3.1`
+# Writing Protocol `v3.2`
 
-Reference file for the Web Investigator (Agent 1 v3.1). Defines the writing discipline rules that keep the log pure, incremental, and reliable.
+Reference file for the Web Investigator (Agent 1 v3.2). Defines the writing discipline rules that keep the log pure, incremental, and reliable.
 
 Read this file BEFORE starting the investigation AND at each phase gate.
+
+---
+
+## Quick Reference (read at phase gates; full document available for deep reference)
+
+### Gate Triggers
+P8, P13, P16, P22, P27, P32 — STOP, write all pending observations, update D2:State, write D1 phase summary, write BUDGET_STATUS (at P8, P13, P16).
+
+### Banned Phrases
+| Banned | Use Instead |
+|--------|-------------|
+| appears to be / seems to be | Describe the observation directly |
+| it is likely that | State the observation + uncertainty marker |
+| the site uses | Name the specific technology observed |
+| this suggests that | State the raw observation; leave inference to D1/D2 |
+| potentially | UNKNOWN or NOT_OBSERVED |
+| seems like | Describe what you see |
+| probably | State the observation; mark uncertainty explicitly |
+| note that | Remove preamble; state the note directly |
+| interestingly | Remove; no editorial commentary |
+| importantly | Remove; all observations are equally important |
+| in order to | to |
+| the fact that | Remove; restructure sentence |
+| it should be noted | Remove; state directly |
+| suggests | State the raw fact; let the analyst infer |
+| means | State what was observed directly |
+| indicates | State the raw fact |
+| required for | Note absence/presence |
+| implies | State the raw fact |
+| therefore | Remove entirely; observations don't conclude |
+| because | State observations separately; no causation |
+| likely due to | Use `?` notation in D0, or UNKNOWN type |
+| is used for | State what exists, not its purpose |
+
+### Self-Check (after every entry)
+1. Is observation separated from analysis? (D0 = raw, D1 = synthesized)
+2. Are all mandatory core fields present for this entry type?
+3. Any conditional fields that should be filled? (first-of-type or 10-entry gap)
+4. Any banned phrases? Search your entry before finalizing.
+5. Does this entry add new information, or repeat what's already logged?
+
+### Output Discipline
+- Log goes to s1_log.md ONLY. Never to chat, never to other files.
+- One entry per observation/action. Never bundle.
+- D0 = observations. D1 = phase summaries. D2 = living state.
+- Errata for corrections. Never edit existing entries.
+- If any BUDGET_STATUS field contradicts D2:State, D2 takes precedence. Flag the contradiction in the notes field and update the field to match D2.
 
 ---
 
@@ -15,7 +62,7 @@ At each gate you MUST:
 1. **Stop what you are doing.** Do not proceed to the next phase.
 2. **Write all pending observations** to `s1_log.md` as properly typed entries.
 3. **Update D2:State** with current phase, key findings, dead ends, and budget.
-4. **Update D1:Phase** if the completed phase produced a summary-worthy finding.
+4. **Write D1 Phase Summary** for the completed phase (see §9 — Mandatory D1 Phase Summaries).
 5. **Write BUDGET_STATUS** (at P8, P13, P16 gates — other gates only if budget changed significantly).
 
 **Why hard gates exist:** Without forced write points, agents naturally defer writing ("I'll do it after this one more thing") until they batch-dump everything at the end. This destroys the incremental-write property and means:
@@ -32,10 +79,11 @@ At each gate, verify:
 ```
 ☐ All D0 observations from this phase are logged as typed entries
 ☐ D2:State is updated with current phase and findings
-☐ D1:Phase summary is written (if phase is complete)
+☐ D1 Phase Summary is written for the completed phase (MANDATORY — see §9)
 ☐ BUDGET_STATUS is written (P8, P13, P16)
 ☐ Entry IDs are sequential and no IDs are skipped
-☐ No entry contains banned phrases (see §4)
+☐ No entry contains banned phrases (see Quick Reference above)
+☐ For each entry: all core fields present; conditional fields filled if first-of-type or 10-entry gap
 ☐ Re-read the next phase section in the appropriate priority-queue
   reference file (prehalt for phases 0–2, posthalt for phases 3–8)
   BEFORE writing the first entry of that phase
@@ -79,23 +127,27 @@ Chat verbosity has three failure modes:
 
 ## 3. Reference Read Schedule
 
-You must re-read reference files at these mandatory points:
+Read ALL reference files once at investigation start (Phase 0). After that, re-reads follow this schedule:
 
 | When | What to Re-Read | Why |
 |------|-----------------|-----|
-| Before starting investigation | This file (`references/writing-protocol.md`) | Fresh load of discipline rules |
-| Before each phase gate (P8, P13, P16, P22, P27, P32) | This file → §1 Phase Gates | Checklist reminder before writing |
-| Before writing any entry | `references/log-format.md` | Ensure entry matches the spec — required fields, correct types |
-| When D2:State shows context_risk: HIGH | `s1_log.md` (D2 + relevant D1) | Recover from context loss |
+| At each phase gate (P8, P13, P16, P22, P27, P32) | This file → Quick Reference + §1 Phase Gates | Checklist reminder before writing |
+| At each phase gate | This file → §9 Mandatory D1 Phase Summaries | Format reminder for D1 writing |
+| Before writing an entry type you haven't written in the last 5 entries | `references/log-format.md` → section for that entry type | Ensure entry matches the spec |
+| Before writing an entry type for the FIRST time | `references/log-format.md` → section for that entry type | Full spec compliance on first use |
+| At each gate: "Any entry types I've written fewer than 3 times this investigation?" | Re-read those log-format.md sections now | Reinforce rare entry format |
+| When D2:State shows context_risk: MEDIUM/HIGH | `s1_log.md` (D2 + relevant D1) | Recover from context loss |
 | Before Phase 4 (deep exploration) | `references/priority-queue-posthalt.md` §Phase 4 | Deep exploration steps are conditional — re-read to know which apply |
 | When entering Phase 5 (request replay) | `references/log-format.md` → REQUEST type | Replay entries require complete req_headers/res_headers |
 | After investigation completes | `references/compaction.md` | Compaction procedure for final log |
 
-### Why Re-Reads Matter
+**On-demand re-reads are always allowed.** If you're unsure about a field or format, re-read the relevant spec section.
 
-After reading a reference file once, the agent's memory of it degrades over subsequent reasoning turns. By the time you reach P16, your recollection of the exact REQUEST entry fields from P2 is unreliable. Mandatory re-reads ensure you're working from the spec, not from a degraded memory that might omit required fields.
+### Why Gate-Based Re-Reads
 
-**Real failure case:** In a Yahoo Finance investigation, the agent wrote REQUEST entries at P17 that were missing `req_headers`, `res_headers`, and `res_body_schema` — all required fields. The agent had read log-format.md once at the start, then never re-read it. By P17, the memory had degraded to "REQUEST entries have url, method, status" — missing most required fields.
+After reading a reference file once, the agent internalizes the format. What degrades with context distance is compliance on checklist items (banned phrases, self-check) and rare entry types. Gate re-reads (~6 per investigation) target both problems at ~15% of the token cost of per-entry re-reads (~40 per investigation).
+
+**Real failure case:** In a Yahoo Finance investigation, the agent wrote REQUEST entries at P17 that were missing `req_headers`, `res_headers`, and `res_body_schema` — all required fields. The agent had read log-format.md once at the start, then never re-read it. By P17, the memory had degraded to "REQUEST entries have url, method, status" — missing most required fields. Gate-based re-reads with the Quick Reference checklist prevent this.
 
 ---
 
@@ -103,23 +155,7 @@ After reading a reference file once, the agent's memory of it degrades over subs
 
 The following phrases indicate analysis leaking into observations. **Do not use them in any log entry's `notes` field or any other field.**
 
-### Banned List
-
-| Phrase | Why It's Banned | Replacement |
-|--------|----------------|-------------|
-| "suggests" | Analysis, not observation | State the raw fact; let the analyst infer |
-| "means" | Interpretation | State what was observed directly |
-| "indicates" | Analysis | State the raw fact |
-| "required for" | Conclusion about necessity | State what was observed; note absence/presence |
-| "implies" | Inference | State the raw fact |
-| "therefore" | Logical conclusion | Remove entirely; observations don't conclude |
-| "because" | Causal reasoning | State observations separately; no causation |
-| "likely due to" | Speculation | Use `?` notation in D0, or UNKNOWN type |
-| "probably" | Probability judgment | Use `~` notation in D0 for "likely/probable" |
-| "seems to" | Uncertain analysis | State what is directly observable |
-| "appears to be" | Uncertain analysis | State what is directly observable |
-| "in order to" | Purpose inference | State the action/observation without purpose |
-| "is used for" | Purpose inference | State what exists, not its purpose |
+See the Quick Reference at the top of this file for the complete banned phrases list and replacements.
 
 ### Self-Check After Writing
 
@@ -265,20 +301,89 @@ notes:                Paginated API endpoint
 After writing each observation entry, perform this self-check:
 
 ```
-1. Does this entry contain any banned phrases? (§4)
+1. Does this entry contain any banned phrases? (Quick Reference)
    → If yes: remove and rewrite.
 
 2. Does this entry match the log-format.md spec for its type?
    → If no: re-read the spec and fix missing/incorrect fields.
 
-3. Is the timestamp the actual time of writing (not backdated)?
+3. Are all core fields present? Are conditional fields filled if
+   this is the first entry of this type, or there's a 10-entry gap
+   since the last entry of this type?
+   → If no: fill missing core fields. Fill conditional fields if required.
+
+4. Is the timestamp the actual time of writing (not backdated)?
    → Backdating is prohibited. Use the current time.
 
-4. Is this an observation, not a conclusion?
+5. Is this an observation, not a conclusion?
    → If it contains causal language ("because", "therefore"), rewrite as raw facts.
 
-5. Would a downstream analyst be able to use this entry without asking me what I meant?
+6. Would a downstream analyst be able to use this entry without asking me what I meant?
    → If no: add missing context or clarify field values.
+
+7. If writing a BUDGET_STATUS: do any fields contradict D2:State?
+   → If yes: D2 takes precedence. Update the field and note the previous value.
 ```
 
-This 5-point check takes seconds but catches the most common log quality failures.
+This 7-point check takes seconds but catches the most common log quality failures.
+
+---
+
+## 9. Mandatory D1 Phase Summaries
+
+At EVERY phase gate (P8, P13, P16, P22, P27, P32), BEFORE proceeding to the next phase, write a D1 section summarizing the completed phase. Format:
+
+```
+## D1: {Phase Name} (P{start}-P{end})
+
+{2-5 sentence summary of key findings, dead ends, and open questions from
+this phase. Include specific entry references (ent_NNN) for the most
+important observations.}
+```
+
+This is MANDATORY, not optional. The D1 summary is the primary context recovery artifact. It must be written while context about the phase is fresh — not retroactively.
+
+**Why mandatory:** D1 summaries are the most cost-effective recovery artifact. Written at gate time (when context is fresh), they capture the essence of a phase in ~50-100 tokens. On recovery, reading D2 + all D1 summaries (~500-800 tokens total) gives near-complete state reconstruction vs reading the full D0 log (~7-8K tokens for a 1900-line file).
+
+---
+
+## Context Maintenance Trigger
+
+Every 6 DECISION cycles (not entries — a decision cycle is any entry where the agent chose a non-obvious action: probing, testing, changing direction), the agent MUST:
+
+1. Re-read D2:State
+2. Re-read the most recent D1 phase summary
+3. Verify: "Does my next planned action align with D2:State and site_brief?"
+
+This is a mechanical trigger. No self-assessment required. Do it at cycle 6, 12, 18, 24, 30, 36, 42, 48, 54, 60 regardless of how you "feel" about your context state.
+
+What counts as a decision cycle:
+- EDGE_CASE_TEST entries (agent-initiated only, not passive detection)
+- SYSTEM entries where agent chose to investigate something
+- DOM_SNAPSHOT entries triggered by agent choice (not routine)
+- REQUEST entries where agent actively probed an endpoint
+
+What does NOT count:
+- COOKIE entries (passive capture)
+- BUDGET_STATUS entries (routine)
+- SYSTEM entries that are automatic (errata, dependency maps)
+- CDP passive captures
+
+Total cost: ~200 tokens every 6 cycles (D2 + D1 re-read). This is the primary context maintenance mechanism. `context_risk` in D2:State is a secondary signal.
+
+---
+
+## Back-Edit Protection
+
+The log is APPEND-ONLY. Never modify an existing entry.
+
+Errata (the only mechanism for corrections) requires:
+- `corrects_entry`: the ent_NNN of the original
+- `field`: which field is being corrected
+- `original_value`: the exact text of the original
+- `corrected_value`: the corrected text
+- `reason`: MUST include a raw observation that supports the correction
+
+Critical rule: **"If you cannot articulate WHY the original was wrong using a specific raw observation (not a feeling, not 'that doesn't look right'), do NOT write errata. When in doubt, leave the original and add a new observation entry instead."**
+
+This rule ensures corrections are grounded in evidence. If the correction itself is wrong, the original survives untouched.

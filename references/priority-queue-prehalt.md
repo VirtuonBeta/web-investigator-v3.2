@@ -1,6 +1,6 @@
 # Priority Queue — Pre-Halt (P0–P13c)
 
-Reference file for the Web Investigator (Agent 1 v3.1). Read this file before the first-pass halt. After the operator resumes the investigation, switch to `references/priority-queue-posthalt.md` for Phases 3–8.
+Reference file for the Web Investigator (Agent 1 v3.2). Read this file before the first-pass halt. After the operator resumes the investigation, switch to `references/priority-queue-posthalt.md` for Phases 3–8.
 
 This file provides the HOW for each investigation step. The WHY lives in SKILL.md.
 
@@ -45,10 +45,9 @@ details:
 
 This entry becomes the reference point for P16b verification. If a target_field or question is not in this entry, P16b cannot verify it was answered.
 
-**Geo-awareness (conditional):** If `geo_requirements` includes `EU` (or if the target URL is a European domain and no geo_requirements field exists in site_brief.md):
-1. Flag the investigation for P7c (consent flow mapping) — this step becomes mandatory, not optional.
-2. Increase `max_cycles` by 2. Log the adjusted value in the Pre-Brief entry.
-3. EU consent walls can gate content visibility, not just cookie state. Without P7c, the log may document truncated content as "full content."
+**Note:** The Pre-Brief entry captures the operational extraction — the fields and questions the agent needs to act on. This is NOT a copy of the full site_brief.md. P16b re-reads site_brief.md directly for verification.
+
+**Geo-awareness (conditional):** If `geo_requirements` includes `EU` (or if the target URL is a European domain and no geo_requirements field exists in site_brief.md): Flag for P7c (consent flow mapping) — see P7c for the full procedure. Increase `max_cycles` by 2. Log the adjusted value in the Pre-Brief entry.
 
 **Does NOT consume a decision cycle.**
 
@@ -68,6 +67,7 @@ Before anything else, read the `known_technology` list from `site_brief.md`. Thi
 | "Akamai Bot Manager" | Increase initial delay to 3 seconds. Expect a potential BLOCKER. |
 | CMS provider (Sanity, Contentful, etc.) | Look for CMS-specific API patterns during P11 (e.g., Sanity's `_type`/`_key`/`_ref`, Contentful's `sys.type`/`sys.id`). |
 | Modern bundler with hashed filenames | Prioritize P19 (→ priority-queue-posthalt.md) — the bundle names may contain route hints. |
+| "SvelteKit" | Flag for SvelteKit fetch binding (see `references/cdp-infrastructure.md` §SvelteKit Fetch Capture). Skip JS-level fetch interception; rely on CDP Network.requestWillBeSent instead. Prioritize JS bundle analysis for request body structure. |
 
 **Log:** SYSTEM entry with `known_technology_adjustment: {adjustments}` so downstream analysis can see what was skipped and why.
 
@@ -155,17 +155,7 @@ Take a complete DOM snapshot of the initial page state. This is your reference p
 
 **Extraction path type tagging:**
 
-For each content item field visible in the initial DOM, classify its extraction path type. This classification determines extraction stability — which selectors survive site redesigns and which break on every deploy.
-
-| Path Type | Priority | Pattern | Survives Deploy? |
-|-----------|----------|---------|-----------------|
-| `structured_data` | 1 (best) | ld+json, __NEXT_DATA__, embedded JSON | Always |
-| `semantic_html` | 2 | `<article>`, `<time datetime>`, `<h1>`, `<main>` | Mostly |
-| `aria_role` | 2 | `[role="article"]`, `[role="heading"]` | Mostly |
-| `data_attribute` | 3 | `[data-testid]`, `[data-cy]`, `[data-component]` | Often |
-| `meta_content` | 3 | `<meta name="description">`, `<meta property="og:*">` | Usually |
-| `class_semantic` | 4 | `.article-title`, `.post-body` | Sometimes |
-| `class_hashed` | 5 (worst) | `.yf-1a2b3c`, `.css-xyz123`, `._abc123` | Never |
+Extraction paths follow the taxonomy defined in `references/log-format.md §Extraction Path Taxonomy`.
 
 **How to detect:** Run this JS after snapshot to classify each field's best available path:
 
@@ -278,6 +268,8 @@ Pages frequently embed structured data in `<script>` tags that isn't visible in 
 **Field-to-extraction-path mapping:**
 
 When ld+json or other structured data is found, map EVERY field to its JSON path. This mapping is the single most valuable artifact for building stable scrapers — it tells the analyser exactly which path to use for each field, with fallback ordering.
+
+Extraction paths follow the taxonomy defined in `references/log-format.md §Extraction Path Taxonomy`.
 
 **For each ld+json block:**
 
@@ -541,6 +533,8 @@ The sitemap often contains hundreds or thousands of URLs that reveal structural 
 ## Phase 2: Content Discovery (~5 cycles)
 
 > **Phase gate reminder:** Before starting Phase 2, verify that Phase 1 completed successfully. You should have: a DOM snapshot (P3), a rendering classification (P6), and cookie/localStorage data (P7/P7b). If any of these are missing, go back and complete them — Phase 2 depends on understanding the page's baseline state.
+>
+> ☐ Write D1 phase summary for completed phase before proceeding.
 
 ---
 
@@ -564,6 +558,8 @@ This step identifies the fundamental content units on the page — what items ex
 - **If RSC detected (P5a):** Wait for streaming completion + `readyState` check.
 - **If content never appears:** This is a BLOCKER — the page may require authentication, may be geo-restricted, or may be blocking your UA.
 
+**Date field check:** For each content card, inspect the date/time element. If the text is relative ("3h ago", "2d ago"), check for: (1) `<time datetime="...">` with ISO 8601, (2) `data-datetime` or `data-timestamp` attribute, (3) JSON in embedded data with absolute date. If none found, log `FEED_TIME: relative-only` in the extraction_map and flag in D2:Open that date filtering on the feed page requires relative-time parsing or detail-page visits.
+
 **Why this matters:** If you can't identify content items, you can't click into them (P14), can't test pagination (P10-P13), and can't do structural comparison (P22). This step gates the entire content pipeline.
 
 ---
@@ -574,13 +570,19 @@ Many sites use IntersectionObserver (IO) for lazy-loading content — items appe
 
 **Detect IO-based lazy loading via behavior, not API inspection:**
 
-1. Note visible item count at current scroll position.
-2. Scroll 500px, wait 2 seconds.
-3. If new items appear: scroll another 500px, wait 2 seconds.
-4. **Interpret the pattern:**
-   - **Batches with pauses** → IntersectionObserver (items load in discrete batches as elements enter viewport).
-   - **Continuous loading** → Scroll event listener (items load continuously during scroll).
-   - **Only loads when scroll stops** → IO + debounce (items load after scrolling pauses).
+1. Record `document.body.scrollHeight` and visible item count BEFORE scroll.
+2. Scroll to `(scrollHeight - viewportHeight)`, i.e. the absolute page bottom.
+3. Wait 3 seconds (some IO implementations debounce).
+4. Record NEW `scrollHeight` and item count AFTER scroll.
+5. If count grew → IO confirmed. Record:
+   - Trigger position: scroll position when IO fired
+   - Batch size: item count delta
+   - New scrollHeight (for depth estimation)
+6. If count unchanged AND scrollHeight unchanged → NO_IO_DETECTED.
+7. If count unchanged BUT scrollHeight grew → IO may have loaded off-screen
+   content. Scroll again to new bottom, wait 3s, re-check.
+8. After confirming IO, continue scrolling in stages to map full pagination
+   depth (batch count, total items, exhaustion point).
 
 **IO endpoint extraction:** When IO loading is detected, CDP will have captured the XHR/fetch requests that loaded the new items. Extract these from CDP captures and log them as part of the P9a observation:
 
@@ -631,6 +633,10 @@ A site can have MULTIPLE pagination mechanisms (e.g., IO for initial load + curs
 | Date/calendar parameters | BOUNDARY DATE = latest content date minus 1 month. Do NOT paginate past this. |
 | Session/tracking parameters with identical content | Stop after 3 consecutive identical pages. Log EDGE_CASE_TEST `CRAWL_TRAP_DETECTED`. |
 | Opaque cursor with no terminal signal | Cap at 5 pages. You can't tell when it ends, so don't chase it forever. |
+
+Crawl trap thresholds per SKILL.md §Rate Limiting & Safety.
+
+**Brief contradiction check:** If site_brief mentions pagination/infinite scroll as a known or likely feature, AND P9a reports NO_IO_DETECTED, AND P10 finds NO pagination mechanism at all → flag as potential false negative in D2:Open. Recommend P-X re-investigation with deeper scroll in `reinvestigation_recommendations`.
 
 **Log:** All signal types detected (not just the first one found), classified mechanism(s) with priority ranking, trigger element selectors. If a button is found, log its exact selector — you'll need it for P11.
 

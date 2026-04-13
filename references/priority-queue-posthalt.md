@@ -1,6 +1,6 @@
 # Priority Queue — Post-Halt (P14–P33+)
 
-Reference file for the Web Investigator (Agent 1 v3.1). Read this file ONLY after the operator resumes the investigation following the first-pass halt.
+Reference file for the Web Investigator (Agent 1 v3.2). Read this file ONLY after the operator resumes the investigation following the first-pass halt.
 
 This file provides the HOW for each investigation step. The WHY lives in SKILL.md.
 
@@ -31,7 +31,7 @@ If any prerequisite is missing, return to `references/priority-queue-prehalt.md`
 
 ## Phase 3: Content Item Entry (~3 cycles/item, min 3 items)
 
-> **Phase gate reminder:** Before starting Phase 3, verify you have: identified content items (P9), understood pagination (P10-P13), and have at least one successful item click path. If content items aren't identifiable, this phase is blocked — return to P9.
+> **Phase gate reminder:** Before starting Phase 3, verify you have: identified content items (P9), understood pagination (P10-P13), and have at least one successful item click path. If content items aren't identifiable, this phase is blocked — return to P9. ☐ Write D1 phase summary for completed phase before proceeding.
 
 This phase explores individual content items in detail. Each item takes ~3 cycles (click in, snapshot, navigate back). The goal is to understand item structure, detect hidden content, and build a reliable extraction schema.
 
@@ -69,7 +69,7 @@ Snapshot the item detail page's DOM structure, organized by zone. This zone-base
 
 **Detail page extraction path mapping:**
 
-For each zone, identify every extractable field and its best extraction path. This is the detail-page equivalent of the P3 extraction path tagging from prehalt. Use the same extraction path type taxonomy (structured_data → semantic_html → aria_role → data_attribute → meta_content → class_semantic → class_hashed).
+For each zone, identify every extractable field and its best extraction path. This is the detail-page equivalent of the P3 extraction path tagging from prehalt. Extraction paths follow the taxonomy defined in `references/log-format.md §Extraction Path Taxonomy`.
 
 **Header zone fields to map:**
 | Field | Check These Paths (in priority order) |
@@ -182,6 +182,7 @@ After completing P14-P16 for at least 3 items, cross-reference your findings aga
 **Procedure:**
 
 1. Read the Pre-Brief SYSTEM entry (the first SYSTEM entry with description `"site_brief read"`). For each `target_field` and `open_question` listed in its details, check: did your observations address it?
+1b. ALSO re-read `site_brief.md` directly — the Pre-Brief entry contains the operational extraction, but site_brief.md is the source of truth for original requirements.
 2. If a field is unanswered: note it in D0 as an open question.
 3. If a field is answered: note the entry ID(s) that provide the answer.
 4. If the Pre-Brief entry is missing (investigation started before Pre-Brief was added): re-read `site_brief.md` directly — specifically the `target_data` and `questions` fields.
@@ -196,7 +197,7 @@ After completing P14-P16 for at least 3 items, cross-reference your findings aga
 
 ## Phase 4: Deep Exploration (~10 cycles, conditional)
 
-> **Phase gate reminder:** Before starting Phase 4, verify you have: completed P14-P16 for at least 3 items, identified the pagination API (P11-P12), and tested replay (P13). Phase 4 steps are conditional — only run the ones triggered by your Phase 1-3 observations. Don't burn cycles on steps that aren't relevant.
+> **Phase gate reminder:** Before starting Phase 4, verify you have: completed P14-P16 for at least 3 items, identified the pagination API (P11-P12), and tested replay (P13). Phase 4 steps are conditional — only run the ones triggered by your Phase 1-3 observations. Don't burn cycles on steps that aren't relevant. ☐ Write D1 phase summary for completed phase before proceeding.
 
 These steps are triggered by specific observations from earlier phases. They dig deeper into infrastructure, authentication, and advanced patterns. Only execute the ones that are relevant to the site you're investigating.
 
@@ -346,6 +347,8 @@ Comparing the DOM structure across multiple items reveals which selectors are st
 
 **Cross-method stability validation:**
 
+Extraction path types per `references/log-format.md §Extraction Path Taxonomy`.
+
 Beyond comparing selectors across items, compare EXTRACTION METHODS across the same item. This is the critical test that determines which fields are safe to extract and which will break.
 
 **Procedure:**
@@ -423,6 +426,8 @@ Step 4: GET {pagination_endpoint}?cursor={next_cursor}
   Requires: cursor from Step 2 response
   Returns: Next page of JSON pagination data
 ```
+
+**Pagination depth requirement:** If pagination was confirmed during investigation (P9a/P10), the HTTP_REQUEST_CHAIN step 1 MUST document the full pagination depth, not just the initial SSR load. Include: total article count after pagination exhaustion, pagination endpoint URL, batch size, and trigger mechanism (scroll/button/API call). An incomplete chain (e.g., 50 articles instead of 150) means the scraper misses content.
 
 **This chain IS the recipe for building a scraper.** An analyser reading this chain knows exactly what to send, in what order, to get valid responses.
 
@@ -560,6 +565,8 @@ Fire the discovered API endpoint in 2 tiers to find the fastest tested rate. Thi
 | Tier 1 passes, Tier 2 hits rate limit | `1 req/s (limited at 3.3 req/s)` |
 | Both tiers pass | `3.3 req/s (tested)` |
 | Tier 1 passes, Tier 2 not run (budget) | `1 req/s (tested only)` |
+
+Rate limit test intervals per SKILL.md §Rate Limiting & Safety.
 
 **Log:** EDGE_CASE_TEST with test_id `RATE_LIMIT_DETECTED` (if limited) or `CUSTOM` (if no limit found). Include `fastest_tested_rate` field with the result string above. This field is NOT a safe rate guarantee — it's the fastest speed that returned normal responses during this test.
 

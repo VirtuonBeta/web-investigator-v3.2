@@ -1,6 +1,6 @@
-# Post-Investigation Compaction `v3.1`
+# Post-Investigation Compaction `v3.2`
 
-Reference file for the Web Investigator (Agent 1 v3.1). Defines the compaction procedure that runs after the investigation completes, before handoff to the analyst.
+Reference file for the Web Investigator (Agent 1 v3.2). Defines the compaction procedure that runs after the investigation completes, before handoff to the analyst.
 
 Read this file AFTER the investigation completes and BEFORE handing off s1_log.md.
 
@@ -79,10 +79,9 @@ Trim rules: §Step 4
 
 ### Step 6: Validate
 
-1. Verify all entry IDs are sequential and no IDs are skipped (after dedup, IDs should still be sequential — renumber if necessary, noting the original IDs in a mapping comment).
-2. Verify D2:State is still accurate (it may reference entry IDs that were renumbered — update references).
+1. Verify that all entry IDs still exist in the log. Gaps in `ent_NNN` numbering are acceptable — do NOT renumber IDs. Renumbering risks breaking cross-reference chains if any reference is missed.
+2. Verify D2:State references are still valid. Check that all `ent_NNN` references in D2:State and D1 sections point to entries that still exist.
 3. Verify no required fields are missing from any entry.
-4. Verify no banned phrases remain (run a scan per writing-protocol.md §4).
 
 ---
 
