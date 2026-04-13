@@ -214,8 +214,28 @@ JSON.stringify(shadowHosts);
 - Log EDGE_CASE_TEST with test_id `SHADOW_DOM_DETECTED`.
 - For each shadow host, record: tag, selector, mode (open/closed), child count.
 - **Open mode:** Snapshot shadow DOM contents (DOM_SNAPSHOT with context `shadow_dom_content`). You can access these via `.shadowRoot.querySelector()`.
-- **Closed mode:** Log as UNKNOWN — content is inaccessible to JavaScript. You may need CDP DOM inspection as a fallback.
-- **Critical note:** `querySelector` CANNOT reach inside shadow roots. You must use `.shadowRoot.querySelector()` for open roots. Closed roots require CDP-level access.
+- **Closed mode:** Use CDP DOM piercing to access closed shadow root content (see procedure below). Do NOT log as UNKNOWN — CDP can pierce closed shadow roots.
+- **Critical note:** `querySelector` CANNOT reach inside shadow roots. You must use `.shadowRoot.querySelector()` for open roots. Closed roots are accessed via CDP `DOM.getDocument { pierce: true }`.
+
+**CDP piercing procedure for closed shadow roots:**
+
+When the TreeWalker scan finds shadow hosts with `mode: "closed"`, JavaScript cannot access their content. But CDP's `DOM` domain can pierce all shadow boundaries including closed ones. Use this procedure:
+
+1. **Log SYSTEM entry** with event `cdp_dom_enabled`, description "CDP.DOM enabled for closed shadow DOM piercing — N closed root(s) detected"
+2. **Enable CDP.DOM:** `CDP.DOM.enable()`
+3. **Get full DOM tree with piercing:** `CDP.DOM.getDocument({ depth: -1, pierce: true })`
+4. **Locate closed shadow roots** in the returned DOM tree — look for nodes with `shadowRoots` array containing entries with `type: "shadow-root"`
+5. **For each closed shadow root:**
+   - Capture its content via `CDP.DOM.getOuterHTML({ nodeId: <shadowRootNodeId> })`
+   - Log as DOM_SNAPSHOT with context `shadow_dom_closed`
+   - Include: host element selector, shadow root mode (`closed`), child count, text content sample
+   - Classify extraction paths for any content fields found inside (same taxonomy as P3)
+6. **Disable CDP.DOM:** `CDP.DOM.disable()`
+7. **Log SYSTEM entry** with event `cdp_dom_disabled`, description "CDP.DOM disabled after shadow DOM capture — N closed root(s) pierced"
+
+**Budget:** 1 decision cycle for the CDP piercing procedure (open roots are free — JS `.shadowRoot.querySelector()` works).
+
+**Buffer safety:** CDP.DOM is enabled for ~30 seconds only. The SYSTEM entries logging enable/disable times let the analyst identify the window where DOM mutation events may appear in the capture. See `references/cdp-infrastructure.md` §1 for full rationale.
 
 **If no shadow hosts (`shadowHosts.length === 0`):** No action needed.
 

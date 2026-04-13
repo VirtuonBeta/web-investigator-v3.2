@@ -1,6 +1,6 @@
 # CDP Infrastructure Setup
 
-Reference file for the Web Investigator (Agent 1 v3.1). CDP passive capture layer configuration and management.
+Reference file for the Web Investigator (Agent 1 v3.2). CDP passive capture layer configuration and management.
 
 Read this during Phase 0 setup and when CDP issues arise.
 
@@ -20,6 +20,30 @@ CDP.Runtime.enable()
 CDP.Console.enable()
 CDP.Page.enable()
 ```
+
+**Do NOT enable `CDP.DOM.enable()` at startup.** This domain fires a CDP event for every DOM mutation (child added, attribute changed, text updated). On dynamic sites, this floods the CDP buffer with thousands of events per second, pushing out important Network captures.
+
+### Conditional CDP.DOM Enable (for Shadow DOM piercing only)
+
+Enable `CDP.DOM` only when P3a detects **closed shadow roots** that JavaScript cannot access. Disable it immediately after capturing the shadow DOM content.
+
+**Procedure:**
+
+```
+1. Enable: CDP.DOM.enable()
+2. Log SYSTEM entry: event "cdp_dom_enabled", description "CDP.DOM enabled for closed shadow DOM piercing"
+3. Run: CDP.DOM.getDocument({ depth: -1, pierce: true })
+   - This returns the full DOM tree, piercing ALL shadow roots including closed ones
+4. For each closed shadow root found:
+   - Snapshot its contents via CDP.DOM.getOuterHTML({ nodeId })
+   - Log as DOM_SNAPSHOT with context "shadow_dom_closed"
+5. Disable: CDP.DOM.disable()
+6. Log SYSTEM entry: event "cdp_dom_disabled", description "CDP.DOM disabled after shadow DOM capture"
+```
+
+**Why conditional:** CDP.DOM events consume the same 2000-entry buffer as Network events. Leaving it enabled would cause premature filter switches and potentially miss API calls and pagination endpoints. The ~30 seconds of DOM events from a targeted piercing is negligible; continuous DOM event streaming is not.
+
+**Buffer impact:** During the ~30 seconds CDP.DOM is enabled, some DOM mutation events may appear in the capture. The SYSTEM entries logging enable/disable times let the analyst identify this window and discount any DOM mutation events that appear during it.
 
 ---
 

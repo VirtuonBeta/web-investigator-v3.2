@@ -52,6 +52,7 @@ Tell the agent to:
 | Fingerprinting type | Distinguishes header-based (easy fix) from TLS-based (hard constraint) |
 | Rate limits | 2-tier test finds the fastest speed that returns normal responses |
 | Hidden content | Detects collapsed sections, paywalls, consent-gated text |
+| Closed Shadow DOM | Pierces closed shadow roots via CDP DOM.getDocument — no content invisible |
 | Deep web forms | Finds search/filter forms and probes them for API endpoints |
 | CMS backends | Identifies third-party CMS (Sanity, Contentful, Strapi) from API responses |
 
@@ -117,7 +118,7 @@ This matters because on sites like DN.se or SVT.se, rejecting consent truncates 
 | CAPTCHA-protected sites | Detects and stops. Cannot solve CAPTCHAs. |
 | Geo-restricted content | Logs the restriction. Cannot change location. |
 | Auth-gated sites | Investigates with whatever auth the brief provides |
-| Closed Shadow DOM | Content is inaccessible. Logged as UNKNOWN. |
+| Closed Shadow DOM | Pierced via CDP DOM.getDocument { pierce: true }. Content is captured and logged. |
 | TLS fingerprinting | Detected and classified. Requires impersonation tools to work around. |
 | Deep web behind login | Does NOT probe LOGIN forms — provide credentials instead. |
 
