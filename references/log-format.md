@@ -22,10 +22,10 @@ g6d0.log           ← Raw observations from Gate 6 (P28–P32+)
 
 ### state.log — State & Summaries
 
-Append-only. Contains the D2/D1/BUDGET hierarchy and key synthesis SYSTEM entries. Never contains raw observation entries (REQUEST, DOM_SNAPSHOT, COOKIE, etc.).
+D2:State is replaced at the top; D1, BUDGET_STATUS, and SYSTEM entries are appended below. Contains the D2/D1/BUDGET hierarchy and key synthesis SYSTEM entries. Never contains raw observation entries (REQUEST, DOM_SNAPSHOT, COOKIE, etc.).
 
 **Write targets for state.log:**
-- D2:State updates (at trigger points)
+- D2:State replacement (at trigger points — single entry at top, replaced each time)
 - D1 phase summaries (at gate boundaries)
 - BUDGET_STATUS entries (at P8, P13, P16, and when budget exhausted)
 - COOKIE_DEPENDENCY_MAP (at P7)
@@ -43,8 +43,8 @@ Append-only per gate. Contains all typed observation entries (REQUEST, DOM_SNAPS
 ## General Rules
 
 1. Every entry is a typed block delimited by `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
-2. Every entry starts with a UTC ISO 8601 timestamp and a TYPE declaration
-3. Every entry has a unique `id` — format: `ent_NNN` (sequential) or `ent_auto_NNN` (CDP passive). IDs are global across all files — sequential numbering continues across state.log and gate D0 files.
+2. Every entry starts with a cycle marker and a TYPE declaration (format TBD — pending addition pass)
+3. Every entry has a unique `id`. (Format TBD — pending addition pass.)
 4. Every entry has a `phase` indicating which priority queue step produced it
 5. Source field: `source: cdp_passive | agent_active | system`
 6. No free-form prose in data fields. Notes and descriptions are fine. Conclusions are not.
@@ -82,9 +82,9 @@ Captures every HTTP request/response observed or initiated.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2025-01-15T10:23:45.123Z  REQUEST
+{CYCLE_AND_TYPE}
 
-id:                   ent_004
+id:                   {ID}
 phase:                1
 source:               cdp_passive
 method:               GET
@@ -114,7 +114,7 @@ notes:                Paginated API endpoint; returns full article list
 
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
-| `id` | string | `ent_NNN` or `ent_auto_NNN` |
+| `id` | string | (Format TBD — pending addition pass.) |
 | `phase` | integer | Phase number (see Phase Numbering Convention) |
 | `source` | enum | `cdp_passive` \| `agent_active` \| `system` |
 | `method` | string | HTTP method: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD |
@@ -144,9 +144,9 @@ Captures the state of the DOM at a specific point in the investigation.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2025-01-15T10:24:12.456Z  DOM_SNAPSHOT
+{CYCLE_AND_TYPE}
 
-id:                   ent_007
+id:                   {ID}
 phase:                1
 source:               agent_active
 context:              content_structure
@@ -169,7 +169,7 @@ notes:                Card layout uses hashed Tailwind classes; data-attribute s
 
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
-| `id` | string | `ent_NNN` or `ent_auto_NNN` |
+| `id` | string | (Format TBD — pending addition pass.) |
 | `phase` | integer | Phase number |
 | `source` | enum | `cdp_passive` \| `agent_active` \| `system` |
 | `context` | enum | `initial_load` \| `post_pagination_N` \| `content_entry_N` \| `article_entry_N` \| `pagination_mechanism_identification` \| `content_structure` \| `page_chrome` \| `window_globals` \| `embedded_json_N` \| `raw_html_sample` \| `service_workers` \| `framework_fingerprint` \| `analytics_payload` \| `timestamp_comparison` \| `url_type_analysis` \| `duplicate_detection` \| `encoding_check` \| `compression_check` \| `fingerprinting` \| `head_analysis` \| `csp_analysis` \| `shadow_dom_content` \| `shadow_dom_closed` \| `spa_state_change` \| `a_b_compare` \| `hidden_content_revealed` \| `stability_matrix` \| `custom` |
@@ -193,9 +193,9 @@ Captures an individual cookie observed during the investigation.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2025-01-15T10:25:00.789Z  COOKIE
+{CYCLE_AND_TYPE}
 
-id:                   ent_012
+id:                   {ID}
 phase:                1
 source:               cdp_passive
 name:                 _ga
@@ -218,7 +218,7 @@ notes:                Google Analytics cookie; set on initial page load
 
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
-| `id` | string | `ent_NNN` or `ent_auto_NNN` |
+| `id` | string | (Format TBD — pending addition pass.) |
 | `phase` | integer | Phase number |
 | `source` | enum | `cdp_passive` \| `agent_active` \| `system` |
 | `name` | string | Cookie name |
@@ -231,7 +231,7 @@ notes:                Google Analytics cookie; set on initial page load
 | `sameSite` | string | `Strict` \| `Lax` \| `None` \| `unknown` |
 | `inferred_purpose` | enum | `tracking` \| `session` \| `crumb` \| `consent` \| `auth` \| `analytics` \| `unknown` |
 | `set_by` | enum | `page_load` \| `consent_flow` \| `auth_flow` \| `api_response` \| `javascript` \| `unknown` |
-| `set_by_request` | string \| null | Entry ID of the REQUEST that set this cookie (e.g., `ent_002`). Creates a linkable chain for cookie origin tracking. `null` if source is JS-only or unknown. |
+| `set_by_request` | string \| null | ID of the REQUEST entry that set this cookie. Creates a linkable chain for cookie origin tracking. `null` if source is JS-only or unknown. |
 | `notes` | string | Factual observations |
 
 ---
@@ -242,9 +242,9 @@ Captures localStorage state at a point in the investigation.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2025-01-15T10:26:30.012Z  LOCAL_STORAGE
+{CYCLE_AND_TYPE}
 
-id:                   ent_018
+id:                   {ID}
 phase:                1
 source:               agent_active
 keys:                 ["auth_token", "user_prefs", "consent_settings", "session_id", "cache_v2"]
@@ -270,7 +270,7 @@ notes:                auth_token appears to be a JWT; consent_settings controls 
 
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
-| `id` | string | `ent_NNN` or `ent_auto_NNN` |
+| `id` | string | (Format TBD — pending addition pass.) |
 | `phase` | integer | Phase number |
 | `source` | enum | `cdp_passive` \| `agent_active` \| `system` |
 | `keys` | array | All localStorage key names |
@@ -290,9 +290,9 @@ Records the execution and result of an edge case test from the battery.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2025-01-15T11:45:00.000Z  EDGE_CASE_TEST
+{CYCLE_AND_TYPE}
 
-id:                   ent_042
+id:                   {ID}
 phase:                6
 source:               agent_active
 test_id:              RATE_LIMIT_DETECTED
@@ -312,7 +312,7 @@ anomalies:            ["Rate limit returns JSON error body instead of HTML"]
 
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
-| `id` | string | `ent_NNN` or `ent_auto_NNN` |
+| `id` | string | (Format TBD — pending addition pass.) |
 | `phase` | integer | Phase number |
 | `source` | enum | `cdp_passive` \| `agent_active` \| `system` |
 | `test_id` | enum | `ECT_001` \| `ECT_002` \| `RATE_LIMIT_DETECTED` \| `CONSENT_BANNER` \| `CONSENT_REDIRECT` \| `PAYWALL_DETECTED` \| `UA_TEST` \| `COOKIE_TEST` \| `PAGINATION_REPLAY` \| `CAPTCHA_DETECTED` \| `BLOCKER` \| `I18N_TEST` \| `TOKEN_ROTATION_TEST` \| `WARM_UP_COMPARE` \| `SPA_ROUTE_TEST` \| `CROSS_ORIGIN_IFRAME_TEST` \| `RSC_DETECTED` \| `THIRD_PARTY_CMS_API` \| `CMS_API_AUTH_DETECTED` \| `UA_TEST_SKIPPED_ROBOTS_TXT` \| `WAF_CHALLENGE_DETECTED` \| `SHADOW_DOM_DETECTED` \| `INTERSECTION_OBSERVER_DETECTED` \| `NON_HTTP_REPLAY_FAILURE` \| `HIDDEN_CONTENT_REVEALED` \| `SSR_API_SOURCE_OVERLAP` \| `SITEMAP_HIDDEN_STRUCTURE` \| `DEEP_WEB_ENDPOINT_FOUND` \| `SEARCH_FORM_NAVIGATION` \| `CRAWL_TRAP_DETECTED` \| `CUSTOM` |
@@ -337,9 +337,9 @@ Infrastructure-level events and agent lifecycle milestones.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2025-01-15T10:20:00.000Z  SYSTEM
+{CYCLE_AND_TYPE}
 
-id:                   ent_001
+id:                   {ID}
 phase:                0
 source:               system
 event:                navigated
@@ -354,7 +354,7 @@ details:              { "url": "https://example.com", "loadTime_ms": 1432 }
 
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
-| `id` | string | `ent_NNN` or `ent_auto_NNN` |
+| `id` | string | (Format TBD — pending addition pass.) |
 | `phase` | integer | Phase number |
 | `source` | enum | `cdp_passive` \| `agent_active` \| `system` |
 | `event` | enum | `navigated` \| `consent_handled` \| `budget_status` \| `blocker_detected` \| `investigation_complete` \| `auto_exclude` \| `phase_complete` \| `custom` \| `retry_transient` \| `permanent_error` \| `degraded` \| `robots_txt_disallow` \| `cdp_filter_switch` \| `cdp_capture_limit_reached` \| `cdp_health_check` \| `cdp_dom_enabled` \| `cdp_dom_disabled` \| `geo_requirement_unmet` \| `unexpected_domain_redirect` \| `browser_recovery` \| `empty_content_state` \| `max_pages_reached` \| `ua_blocked_by_robots_txt` \| `probe_skipped_robots_txt` \| `sitemap_classification` \| `search_form_inventory` \| `search_form_skipped_stateful` \| `crawl_trap_boundary` \| `crawl_trap_suspected` \| `errata` \| `cookie_dependency_map` \| `consent_flow_map` \| `http_request_chain` \| `custom` |
@@ -369,9 +369,9 @@ Periodic checkpoint of overall session state.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2025-01-15T11:00:00.000Z  SESSION
+{CYCLE_AND_TYPE}
 
-id:                   ent_035
+id:                   {ID}
 phase:                2
 source:               system
 current_url:          https://example.com/news?page=3
@@ -391,7 +391,7 @@ notes:                Auth confirmed via session cookie; no token rotation obser
 
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
-| `id` | string | `ent_NNN` or `ent_auto_NNN` |
+| `id` | string | (Format TBD — pending addition pass.) |
 | `phase` | integer | Phase number |
 | `source` | enum | `cdp_passive` \| `agent_active` \| `system` |
 | `current_url` | string | URL the browser is currently on |
@@ -411,9 +411,9 @@ Tracks investigation budget consumption and discovery progress.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2025-01-15T11:30:00.000Z  BUDGET_STATUS
+{CYCLE_AND_TYPE}
 
-id:                   ent_040
+id:                   {ID}
 phase:                4
 source:               system
 status:               content_discovery_complete
@@ -443,7 +443,7 @@ notes:                 Pagination found; API surface is moderate
 
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
-| `id` | string | `ent_NNN` or `ent_auto_NNN` |
+| `id` | string | (Format TBD — pending addition pass.) |
 | `phase` | integer | Phase number |
 | `source` | enum | `cdp_passive` \| `agent_active` \| `system` |
 | `status` | enum | `baseline_complete` \| `content_discovery_complete` \| `item_inspection_complete` \| `deep_exploration_complete` \| `budget_exhausted` \| `investigation_complete` |
@@ -473,16 +473,16 @@ Catches observations that don't fit any other type. Use sparingly — prefer a t
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2025-01-15T12:00:00.000Z  UNKNOWN
+{CYCLE_AND_TYPE}
 
-id:                   ent_050
+id:                   {ID}
 phase:                4
 source:               cdp_passive
 description:          Received a binary WebSocket frame with non-UTF8 content
 raw_evidence:         "[154 bytes of binary data, first 4 bytes: 0x89 0x50 0x4E 0x47]"
 hypothesis:           May be a PNG image streamed over WebSocket
 resolution_test:      Capture next frame with base64 encoding for MIME detection
-related_entries:      ["ent_048", "ent_049"]
+related_entries:      ["{ID}", "{ID}"]
 confidence_in_hypothesis: LOW
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
@@ -493,7 +493,7 @@ confidence_in_hypothesis: LOW
 
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
-| `id` | string | `ent_NNN` or `ent_auto_NNN` |
+| `id` | string | (Format TBD — pending addition pass.) |
 | `phase` | integer | Phase number |
 | `source` | enum | `cdp_passive` \| `agent_active` \| `system` |
 | `description` | string | What was observed |
@@ -511,9 +511,9 @@ Captures a service worker observed during the investigation.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2025-01-15T10:28:00.000Z  SERVICE_WORKER
+{CYCLE_AND_TYPE}
 
-id:                   ent_022
+id:                   {ID}
 phase:                1
 source:               cdp_passive
 scope:                https://example.com/
@@ -532,7 +532,7 @@ notes:                Uses Workbox; precache manifest includes 14 assets
 
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
-| `id` | string | `ent_NNN` or `ent_auto_NNN` |
+| `id` | string | (Format TBD — pending addition pass.) |
 | `phase` | integer | Phase number |
 | `source` | enum | `cdp_passive` \| `agent_active` \| `system` |
 | `scope` | string | Service worker scope URL |
@@ -666,15 +666,15 @@ Entries are append-only — you never modify or delete a previous entry. If you 
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2025-01-15T12:30:00.000Z  SYSTEM
+{CYCLE_AND_TYPE}
 
-id:                   ent_055
+id:                   {ID}
 phase:                4
 source:               system
 event:                errata
-description:          Correction to ent_012
+description:          Correction to {ORIGINAL_ID}
 details:
-  corrects_entry:     ent_012
+  corrects_entry:     {ORIGINAL_ID}
   field:              inferred_purpose
   original_value:     tracking
   corrected_value:    session
@@ -699,4 +699,3 @@ details:
 | Missing required field in REQUEST entry | `req_headers` was omitted at P2; adding it now after re-reading spec |
 | Wrong `render_type` in DOM_SNAPSHOT | Originally classified as `SSR`, but P6 raw HTML comparison showed it's `hybrid` |
 | Incorrect `source` classification | Logged as `cdp_passive` but was actually `agent_active` |
-| Timestamp error | Entry was written with incorrect timestamp (rare; use current time as corrected_value) |

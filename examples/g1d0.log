@@ -5,9 +5,9 @@ Example output from a first-pass investigation of a non-EU site. This file conta
 ---
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2026-04-12T08:14:58.000Z  SYSTEM
+{CYCLE_AND_TYPE}  SYSTEM
 
-id:                   ent_001
+id:                   {ID}
 phase:                0
 source:               system
 event:                custom
@@ -26,9 +26,9 @@ details:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2026-04-12T08:15:00.000Z  SYSTEM
+{CYCLE_AND_TYPE}  SYSTEM
 
-id:                   ent_002
+id:                   {ID}
 phase:                0
 source:               system
 event:                cdp_health_check
@@ -37,9 +37,9 @@ details:              {}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2026-04-12T08:15:03.500Z  SYSTEM
+{CYCLE_AND_TYPE}  SYSTEM
 
-id:                   ent_003
+id:                   {ID}
 phase:                0
 source:               system
 event:                navigated
@@ -48,9 +48,9 @@ details:              {}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2026-04-12T08:15:04.200Z  DOM_SNAPSHOT
+{CYCLE_AND_TYPE}  DOM_SNAPSHOT
 
-id:                   ent_004
+id:                   {ID}
 phase:                1
 source:               agent_active
 context:              initial_load
@@ -88,9 +88,9 @@ notes:                "Standard article card layout. Each card has headline, byl
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2026-04-12T08:15:06.500Z  COOKIE
+{CYCLE_AND_TYPE}  COOKIE
 
-id:                   ent_008
+id:                   {ID}
 phase:                1
 source:               cdp_passive
 name:                 A1
@@ -103,14 +103,14 @@ secure:               true
 sameSite:             None
 inferred_purpose:     session
 set_by:               page_load
-set_by_request:       ent_003
+set_by_request:       {ID}
 notes:                Primary session cookie; set on initial page load
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2026-04-12T08:15:06.600Z  COOKIE
+{CYCLE_AND_TYPE}  COOKIE
 
-id:                   ent_009
+id:                   {ID}
 phase:                1
 source:               cdp_passive
 name:                 A1S
@@ -123,6 +123,6 @@ secure:               true
 sameSite:             None
 inferred_purpose:     auth
 set_by:               page_load
-set_by_request:       ent_003
+set_by_request:       {ID}
 notes:                Auth-related cookie; session-scoped; set alongside A1
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

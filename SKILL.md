@@ -58,7 +58,7 @@ output/
 
 | What You're Writing | Which File | Why |
 |---------------------|-----------|-----|
-| D2:State update | `state.log` | Append — state checkpoint |
+| D2:State update | `state.log` | (Write method TBD — pending addition pass) |
 | D1 phase summary | `state.log` | Append — gate completion record |
 | BUDGET_STATUS entry | `state.log` | Append — budget checkpoint |
 | COOKIE_DEPENDENCY_MAP | `state.log` | Append — key synthesis artifact |
@@ -68,7 +68,7 @@ output/
 | Site brief verification (P16b) | `state.log` | Append — verification artifact |
 | All other entries (REQUEST, DOM_SNAPSHOT, COOKIE, EDGE_CASE_TEST, etc.) | Current gate D0 file | Append — raw observations |
 
-Gate D0 files are append-only and never modified after the gate completes. state.log is append-only throughout the investigation.
+Gate D0 files are append-only and never modified after the gate completes. state.log: D2:State is replaced at the top; D1, BUDGET_STATUS, and SYSTEM entries are appended below.
 
 ### File Naming
 
@@ -99,7 +99,7 @@ These apply to ALL phases. Internalize them — they are not suggestions.
 
 ## Worklog Architecture
 
-The worklog is split across `state.log` (state + summaries) and gate D0 files (raw observations). Entry IDs are global and sequential across all files — `last_entry` in D2:State tracks the counter.
+The worklog is split across `state.log` (state + summaries) and gate D0 files (raw observations).
 
 ### D2: State — Your Checkpoint
 
@@ -109,8 +109,8 @@ D2 is the first thing you read when recovering context. It tells you exactly whe
 ## D2: State
 Phase: P17 | Key: SSR, /v2/articles, cursor pagination, no auth
 Dead ends: GraphQL ✗, shadow DOM ✗ | Open: cursor type? rate limit threshold?
-Budget: 18/60 cycles used | last_entry: ent_042 | current_d0: g4d0.log
-context_risk: LOW | Last checkpoint: P16
+Budget: 18/60 cycles used | current_d0: g4d0.log
+Last checkpoint: P16
 ```
 
 **D2:State fields:**
@@ -119,28 +119,22 @@ context_risk: LOW | Last checkpoint: P16
 - `Dead ends` — ruled-out paths (with ✗)
 - `Open` — unresolved questions (formal field; used for cross-checking against site_brief)
 - `Budget` — cycles used / total
-- `last_entry` — the entry ID of the most recently written entry across all files. Used to continue sequential numbering when opening a new gate D0 file.
 - `current_d0` — which gate D0 file to write raw observations to (e.g., `g4d0.log`)
-- `context_risk` — (optional secondary signal) LOW / MEDIUM / HIGH; see Context Maintenance Trigger in writing-protocol.md
 - `Last checkpoint` — most recent gate
-
-> **Note:** `context_risk` is a secondary signal. The primary context maintenance mechanism is the mechanical cycle trigger defined in `references/writing-protocol.md` → Context Maintenance Trigger. Use context_risk as a supplementary indicator if you notice degradation between trigger intervals.
 
 ### D1: Phase — Per-Phase Summary
 
 Written to `state.log` when a priority phase completes. Each D1 references its gate D0 file.
 
 ```
-## D1: Baseline (P0-P8a) → g1d0.log
+## D1: Baseline (P0-P8a) | ents: {TBD}
 CDP ✓, SSR, Next.js Pages, cookies 7 (3 auth)
 Sitemap: 42 URLs, 5 pattern clusters, deep web: /search?q=
 
-## D1: Content (P9-P13c) → g2d0.log
+## D1: Content (P9-P13c) | ents: {TBD}
 24 items visible, IO lazy loading, .article-card ✓
 Pagination: XHR /v2/articles, cursor-based, no auth
 ```
-
-The `→ gNd0.log` suffix tells the analyst (and the recovering agent) which file contains the raw observations for that phase.
 
 ### D0: Raw Observations — Per-Gate Files
 
@@ -152,7 +146,7 @@ Each gate's raw observations go into a dedicated file (`g1d0.log` through `g6d0.
   implies / results in        ✓  confirmed
 ?  hypothesis / unconfirmed    ✗  ruled out / dead end
 ~  likely / probable           !  important / notable
-§  section reference           ent_NNN  log entry reference
+§  section reference
 ```
 
 ### When to Write (Trigger-Based)
@@ -162,7 +156,7 @@ Write to the log at these trigger points — not every step, but at meaningful b
 | Trigger | What to Write | Write To |
 |---------|---------------|----------|
 | Phase boundary (P8, P13, P16, P22, P27, P31) | D2:State update + D1 if phase complete | state.log |
-| Context pressure (feeling uncertain about prior state) | D2:State with context_risk: MEDIUM/HIGH + re-read | state.log |
+| Context pressure (feeling uncertain about prior state) | D2:State update | state.log |
 | BLOCKER or unexpected discovery | D0 entry immediately | current gate D0 |
 | Budget checkpoint (P8, P13, P16) | BUDGET_STATUS entry | state.log |
 | Operator spot-check ("show me your D2:State") | D2:State update | state.log |
@@ -175,10 +169,10 @@ Write to the log at these trigger points — not every step, but at meaningful b
 
 When resuming after context loss, read in this EXACT order:
 
-1. **state.log** — Where am I? The last D2:State entry tells you your phase, budget, `last_entry`, and `current_d0`. All D1 summaries are here too.
+1. **state.log** — Where am I? D2:State tells you your phase, budget, and `current_d0`. All D1 summaries are here too.
 2. **site_brief.md** — What am I looking for? The operator's requirements. (Trust the most recent D2:State over site_brief if they disagree on framework/technology identification.)
 3. **Current gate D0 file** — What did I just observe? Read the file named in `current_d0` from D2:State.
-4. **Older gate D0 files** — Only if needed. The D1 summary in state.log tells you which gate file to open (`→ gNd0.log`). Read only the specific file you need.
+4. **Older gate D0 files** — Only if needed. The D1 summary's `ents:` range tells you which gate file and entry range to read (format — pending addition pass).
 
 Total recovery cost: ~200-400 tokens for steps 1-2. Step 3 adds ~100-300 tokens. Step 4 on demand only.
 

@@ -42,7 +42,7 @@ Throughout Phase 5, track which prior requests are required for each test to suc
 
 **For each test (P23-P27), add these fields to the EDGE_CASE_TEST entry:**
 
-- `prerequisite_requests`: Array of request entry IDs that must complete before this request can succeed (e.g., `["ent_002", "ent_005"]` — the initial page load and consent acceptance must happen first)
+- `prerequisite_requests`: Array of request entry IDs that must complete before this request can succeed (e.g., `["{ID}", "{ID}"]` — the initial page load and consent acceptance must happen first)
 - `cookies_required`: Array of cookie names that this request requires. Cross-reference with P7 cookie origin tracking (from gate-1).
 - `headers_required`: Array of header names that this request requires (e.g., `Authorization`, `X-CSRF-Token`, `Referer`)
 

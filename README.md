@@ -88,7 +88,7 @@ Resume procedure:
 2. Read state.log — start with the last D2:State entry, then read all D1 sections. This IS your context recovery.
 3. Read references/gates/gate-3-inspection.md — this is your instruction set for Phase 3 (subsequent phases have their own gate files).
 4. Read references/writing-protocol.md — re-fresh the discipline rules.
-5. Resume from where D2:State says you left off. Continue appending to the SAME files — state.log for state, g3d0.log for Gate 3 raw observations.
+5. Resume from where D2:State says you left off. Continue writing to the SAME files — state.log for state (D2:State is replaced at top; D1/BUDGET appended below), g3d0.log for Gate 3 raw observations.
 
 The operator has approved continuing past the first-pass halt. Begin Phase 3 (P14-P16b).
 

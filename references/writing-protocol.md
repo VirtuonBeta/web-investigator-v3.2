@@ -61,13 +61,13 @@ At each gate you MUST:
 
 1. **Stop what you are doing.** Do not proceed to the next phase.
 2. **Write all pending observations** to the current gate's D0 file (`g{N}d0.log`) as properly typed entries.
-3. **Update D2:State** — append to `state.log` with current phase, key findings, dead ends, budget, `last_entry`, and `current_d0`.
-4. **Write D1 Phase Summary** — append to `state.log` for the completed phase (see §9 — Mandatory D1 Phase Summaries). Include `→ g{N}d0.log` suffix.
+3. **Replace D2:State** at the top of `state.log` with current phase, key findings, dead ends, budget, and `current_d0`.
+4. **Write D1 Phase Summary** in `state.log` for the completed phase (see §9 — Mandatory D1 Phase Summaries). Include `ents:` index range (format — pending addition pass).
 5. **Write BUDGET_STATUS** — append to `state.log` (at P8, P13, P16 gates — other gates only if budget changed significantly).
 
 **Why hard gates exist:** Without forced write points, agents naturally defer writing ("I'll do it after this one more thing") until they batch-dump everything at the end. This destroys the incremental-write property and means:
 - If the run is interrupted, all unwritten observations are lost.
-- Timestamps are fabricated (backdated to when the observation happened, not when it was written).
+- (Timing rule — pending addition pass)
 - The analyst gets no intermediate data.
 
 **Skipping a gate violates the output contract.** There are no exceptions.
@@ -78,10 +78,9 @@ At each gate, verify:
 
 ```
 ☐ All D0 observations from this phase are logged as typed entries in the gate D0 file
-☐ D2:State is appended to state.log with current phase and findings
+☐ D2:State is replaced at the top of state.log with current phase and findings
 ☐ D1 Phase Summary is appended to state.log for the completed phase (MANDATORY — see §9)
 ☐ BUDGET_STATUS is appended to state.log (P8, P13, P16)
-☐ Entry IDs are sequential and no IDs are skipped
 ☐ No entry contains banned phrases (see Quick Reference above)
 ☐ For each entry: all core fields present; conditional fields filled if first-of-type or 10-entry gap
 ☐ Re-read the next gate file (see SKILL.md → Reference Files for the phase-to-file map)
@@ -136,7 +135,7 @@ Read ALL reference files once at investigation start (Phase 0). After that, re-r
 | Before writing an entry type you haven't written in the last 5 entries | `references/log-format.md` → section for that entry type | Ensure entry matches the spec |
 | Before writing an entry type for the FIRST time | `references/log-format.md` → section for that entry type | Full spec compliance on first use |
 | At each gate: "Any entry types I've written fewer than 3 times this investigation?" | Re-read those log-format.md sections now | Reinforce rare entry format |
-| When D2:State shows context_risk: MEDIUM/HIGH | `state.log` (last D2:State + relevant D1) | Recover from context loss |
+| When context pressure is felt (uncertain about prior state) | `state.log` (last D2:State + relevant D1) | Recover from context loss |
 | Before Phase 4 (deep exploration) | `references/gates/gate-4-exploration.md` | Deep exploration steps are conditional — re-read to know which apply |
 | When entering Phase 5 (request replay) | `references/log-format.md` → REQUEST type | Replay entries require complete req_headers/res_headers |
 | After investigation completes | `references/compaction.md` | Compaction procedure for final log |
@@ -194,7 +193,7 @@ Work on one phase at a time. Do not:
 
 - **Skip ahead** to later phases because the current phase "seems simple" — you may miss critical observations.
 - **Mix phases** — if you're in Phase 2 (P9-P13), don't start Phase 4 (P17-P22) observations.
-- **Revisit completed phases** unless you have an explicit reason (e.g., D2:State context_risk: HIGH, or operator instruction).
+- **Revisit completed phases** unless you have an explicit reason (e.g., operator instruction).
 
 ### Phase Transitions
 
@@ -260,9 +259,9 @@ At phase gates, you may not have time to write full detailed entries for every o
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2025-01-15T10:23:45.123Z  REQUEST
+{CYCLE_AND_TYPE}  REQUEST
 
-id:                   ent_004
+id:                   {ID}
 phase:                1
 source:               cdp_passive
 method:               GET
@@ -275,9 +274,9 @@ Later, expand it:
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2025-01-15T10:23:45.123Z  REQUEST
+{CYCLE_AND_TYPE}  REQUEST
 
-id:                   ent_004
+id:                   {ID}
 phase:                1
 source:               cdp_passive
 method:               GET
@@ -321,8 +320,7 @@ After writing each observation entry, perform this self-check:
    since the last entry of this type?
    → If no: fill missing core fields. Fill conditional fields if required.
 
-4. Is the timestamp the actual time of writing (not backdated)?
-   → Backdating is prohibited. Use the current time.
+4. {Time/ordering rule TBD — pending addition pass}
 
 5. Is this an observation, not a conclusion?
    → If it contains causal language ("because", "therefore"), rewrite as raw facts.
@@ -346,7 +344,7 @@ At EVERY phase gate (P8, P13, P16, P22, P27, P31), BEFORE proceeding to the next
 ## D1: {Phase Name} (P{start}-P{end})
 
 {2-5 sentence summary of key findings, dead ends, and open questions from
-this phase. Include specific entry references (ent_NNN) for the most
+this phase. Include {ID references — format TBD} for the most
 important observations.}
 ```
 
@@ -378,7 +376,7 @@ What does NOT count:
 - SYSTEM entries that are automatic (errata, dependency maps)
 - CDP passive captures
 
-Total cost: ~200 tokens every 6 cycles (D2 + D1 re-read). This is the primary context maintenance mechanism. `context_risk` in D2:State is a secondary signal.
+Total cost: ~200 tokens every 6 cycles (D2 + D1 re-read).
 
 ---
 
@@ -387,7 +385,7 @@ Total cost: ~200 tokens every 6 cycles (D2 + D1 re-read). This is the primary co
 The log is APPEND-ONLY. Never modify an existing entry.
 
 Errata (the only mechanism for corrections) requires:
-- `corrects_entry`: the ent_NNN of the original
+- `corrects_entry`: the ID of the original entry (format — pending addition pass)
 - `field`: which field is being corrected
 - `original_value`: the exact text of the original
 - `corrected_value`: the corrected text
