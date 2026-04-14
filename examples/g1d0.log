@@ -1,13 +1,13 @@
 # g1d0.log — Gate 1 Raw Observations (P0–P8a)
 
-Example output from a first-pass investigation of a non-EU site. This file contains only raw observation entries — state and summaries are in state.log.
+Example output from a first-pass investigation of a non-EU site. This file contains all typed entries from Gate 1 — state and summaries are in state.log (D2:State + D1 only).
 
 ---
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2026-04-12T08:14:58.000Z  SYSTEM
+cycle: 1  SYSTEM
 
-id:                   ent_001
+id:                   g1:001
 phase:                0
 source:               system
 event:                custom
@@ -26,9 +26,9 @@ details:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2026-04-12T08:15:00.000Z  SYSTEM
+cycle: 1  SYSTEM
 
-id:                   ent_002
+id:                   g1:002
 phase:                0
 source:               system
 event:                cdp_health_check
@@ -37,9 +37,9 @@ details:              {}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2026-04-12T08:15:03.500Z  SYSTEM
+cycle: 1  SYSTEM
 
-id:                   ent_003
+id:                   g1:003
 phase:                0
 source:               system
 event:                navigated
@@ -48,9 +48,9 @@ details:              {}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2026-04-12T08:15:04.200Z  DOM_SNAPSHOT
+cycle: 3  DOM_SNAPSHOT
 
-id:                   ent_004
+id:                   g1:004
 phase:                1
 source:               agent_active
 context:              initial_load
@@ -88,9 +88,9 @@ notes:                "Standard article card layout. Each card has headline, byl
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2026-04-12T08:15:06.500Z  COOKIE
+cycle: 3  COOKIE
 
-id:                   ent_008
+id:                   g1:005
 phase:                1
 source:               cdp_passive
 name:                 A1
@@ -103,14 +103,14 @@ secure:               true
 sameSite:             None
 inferred_purpose:     session
 set_by:               page_load
-set_by_request:       ent_003
+set_by_request:       g1:003
 notes:                Primary session cookie; set on initial page load
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2026-04-12T08:15:06.600Z  COOKIE
+cycle: 3  COOKIE
 
-id:                   ent_009
+id:                   g1:006
 phase:                1
 source:               cdp_passive
 name:                 A1S
@@ -123,6 +123,25 @@ secure:               true
 sameSite:             None
 inferred_purpose:     auth
 set_by:               page_load
-set_by_request:       ent_003
+set_by_request:       g1:003
 notes:                Auth-related cookie; session-scoped; set alongside A1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+cycle: 8  SYSTEM
+
+id:                   g1:009
+phase:                1
+source:               system
+event:                cookie_dependency_map
+description:          Cookie acquisition chain for target domain
+details:
+  steps:
+    - step: 1
+      action: "GET /"
+      sets_cookies: ["A1", "A1S", "GUCS", "A3"]
+    - step: 2
+      action: "GET /v2/articles"
+      requires_cookies: ["A1", "A1S"]
+      sets_cookies: []
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

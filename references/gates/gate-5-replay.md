@@ -17,10 +17,9 @@ If any prerequisite is missing, return to the appropriate gate file before proce
 
 | What | File | Why |
 |------|------|-----|
-| Raw observations | `g5d0.log` | Gate-scoped raw data |
+| Raw observations (all typed entries including HTTP_REQUEST_CHAIN, etc.) | `g5d0.log` | Gate-scoped D0 — all typed entries go here |
 | D2:State updates | `state.log` | State checkpoint |
 | D1: Request Replay Phase Summary | `state.log` | Phase completion record |
-| HTTP_REQUEST_CHAIN (at P27) | `state.log` | Key synthesis artifact |
 
 ## Quick Phase Map
 
@@ -42,7 +41,7 @@ Throughout Phase 5, track which prior requests are required for each test to suc
 
 **For each test (P23-P27), add these fields to the EDGE_CASE_TEST entry:**
 
-- `prerequisite_requests`: Array of request entry IDs that must complete before this request can succeed (e.g., `["ent_002", "ent_005"]` — the initial page load and consent acceptance must happen first)
+- `prerequisite_requests`: Array of gate-qualified request IDs that must complete before this request can succeed (e.g., `["g1:003", "g1:007"]` — the initial page load and consent acceptance must happen first)
 - `cookies_required`: Array of cookie names that this request requires. Cross-reference with P7 cookie origin tracking (from gate-1).
 - `headers_required`: Array of header names that this request requires (e.g., `Authorization`, `X-CSRF-Token`, `Referer`)
 

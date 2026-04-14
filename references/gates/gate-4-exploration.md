@@ -17,7 +17,7 @@ If any prerequisite is missing, return to the appropriate gate file before proce
 
 | What | File | Why |
 |------|------|-----|
-| Raw observations | `g4d0.log` | Gate-scoped raw data |
+| Raw observations (all typed entries) | `g4d0.log` | Gate-scoped D0 — all typed entries go here |
 | D2:State updates | `state.log` | State checkpoint |
 | D1: Deep Exploration Phase Summary | `state.log` | Phase completion record |
 

@@ -35,7 +35,7 @@ Internal reasoning language: 中文 (Mandarin Chinese). All chain-of-thought, pl
 
 ```
 output/
-├── state.log          ← D2:State + D1 summaries + BUDGET_STATUS + key SYSTEM artifacts
+├── state.log          ← D2:State (replaced at top) + D1 summaries (bottom-up)
 ├── g1d0.log           ← Raw observations from Gate 1 (P0–P8a)
 ├── g2d0.log           ← Raw observations from Gate 2 (P9–P13c)
 ├── g3d0.log           ← Raw observations from Gate 3 (P14–P16b)
@@ -58,17 +58,11 @@ output/
 
 | What You're Writing | Which File | Why |
 |---------------------|-----------|-----|
-| D2:State update | `state.log` | Append — state checkpoint |
-| D1 phase summary | `state.log` | Append — gate completion record |
-| BUDGET_STATUS entry | `state.log` | Append — budget checkpoint |
-| COOKIE_DEPENDENCY_MAP | `state.log` | Append — key synthesis artifact |
-| HTTP_REQUEST_CHAIN | `state.log` | Append — key synthesis artifact |
-| consent_flow_map | `state.log` | Append — key synthesis artifact |
-| INVESTIGATION_FIRST_PASS_COMPLETE | `state.log` | Append — lifecycle milestone |
-| Site brief verification (P16b) | `state.log` | Append — verification artifact |
-| All other entries (REQUEST, DOM_SNAPSHOT, COOKIE, EDGE_CASE_TEST, etc.) | Current gate D0 file | Append — raw observations |
+| D2:State replacement | `state.log` | Replace — single entry at top, overwritten at each trigger point |
+| D1 phase summary | `state.log` | Insert above previous D1 — bottom-up ordering |
+| All typed entries (REQUEST, DOM_SNAPSHOT, COOKIE, BUDGET_STATUS, SYSTEM, EDGE_CASE_TEST, COOKIE_DEPENDENCY_MAP, HTTP_REQUEST_CHAIN, consent_flow_map, INVESTIGATION_FIRST_PASS_COMPLETE, site brief verification, etc.) | Current gate D0 file | Append — raw observations and synthesis artifacts |
 
-Gate D0 files are append-only and never modified after the gate completes. state.log is append-only throughout the investigation.
+Gate D0 files are append-only and never modified after the gate completes. state.log contains ONLY D2:State (replaced at top) and D1 summaries (inserted bottom-up). No typed entries belong in state.log — they all go in the current gate D0 file.
 
 ### File Naming
 
@@ -99,18 +93,20 @@ These apply to ALL phases. Internalize them — they are not suggestions.
 
 ## Worklog Architecture
 
-The worklog is split across `state.log` (state + summaries) and gate D0 files (raw observations). Entry IDs are global and sequential across all files — `last_entry` in D2:State tracks the counter.
+The worklog is split across `state.log` (state + summaries) and gate D0 files (raw observations).
 
 ### D2: State — Your Checkpoint
 
 D2 is the first thing you read when recovering context. It tells you exactly where you are. Written to `state.log`.
 
+**D2:State is a single entry at the TOP of state.log.** At every trigger point (gate boundary, context pressure, blocker, discovery, operator spot-check), the agent REPLACES the current D2:State with an updated one. There is never more than one D2:State in state.log — it is always the most recent checkpoint.
+
 ```
 ## D2: State
 Phase: P17 | Key: SSR, /v2/articles, cursor pagination, no auth
 Dead ends: GraphQL ✗, shadow DOM ✗ | Open: cursor type? rate limit threshold?
-Budget: 18/60 cycles used | last_entry: ent_042 | current_d0: g4d0.log
-context_risk: LOW | Last checkpoint: P16
+Budget: 18/60 cycles used | current_d0: g4d0.log
+Last checkpoint: P16
 ```
 
 **D2:State fields:**
@@ -119,28 +115,26 @@ context_risk: LOW | Last checkpoint: P16
 - `Dead ends` — ruled-out paths (with ✗)
 - `Open` — unresolved questions (formal field; used for cross-checking against site_brief)
 - `Budget` — cycles used / total
-- `last_entry` — the entry ID of the most recently written entry across all files. Used to continue sequential numbering when opening a new gate D0 file.
 - `current_d0` — which gate D0 file to write raw observations to (e.g., `g4d0.log`)
-- `context_risk` — (optional secondary signal) LOW / MEDIUM / HIGH; see Context Maintenance Trigger in writing-protocol.md
 - `Last checkpoint` — most recent gate
-
-> **Note:** `context_risk` is a secondary signal. The primary context maintenance mechanism is the mechanical cycle trigger defined in `references/writing-protocol.md` → Context Maintenance Trigger. Use context_risk as a supplementary indicator if you notice degradation between trigger intervals.
 
 ### D1: Phase — Per-Phase Summary
 
-Written to `state.log` when a priority phase completes. Each D1 references its gate D0 file.
+Written to `state.log` when a priority phase completes. D1 summaries are ordered **bottom-up** (newest above oldest) — the most recently completed phase appears first, making it the first D1 you read after D2:State.
+
+Each D1 includes an `ents:` range that chains back to the gate D0 file. This is the index: `ents: g1:001-g1:011` means "entries g1:001 through g1:011 in g1d0.log."
 
 ```
-## D1: Baseline (P0-P8a) → g1d0.log
-CDP ✓, SSR, Next.js Pages, cookies 7 (3 auth)
-Sitemap: 42 URLs, 5 pattern clusters, deep web: /search?q=
-
-## D1: Content (P9-P13c) → g2d0.log
+## D1: Content (P9-P13c) | ents: g2:001-g2:008
 24 items visible, IO lazy loading, .article-card ✓
 Pagination: XHR /v2/articles, cursor-based, no auth
+
+## D1: Baseline (P0-P8a) | ents: g1:001-g1:011
+CDP ✓, SSR, Next.js Pages, cookies 7 (3 auth)
+Sitemap: 42 URLs, 5 pattern clusters, deep web: /search?q=
 ```
 
-The `→ gNd0.log` suffix tells the analyst (and the recovering agent) which file contains the raw observations for that phase.
+**Three-hop chain:** D2:State (current position) → D1 summary (what each phase found + `ents:` index) → gNd0.log (raw observations). The `ents:` range makes every D1 a true index entry — to drill into a specific phase, follow the `ents:` range to the exact gate file and entry numbers.
 
 ### D0: Raw Observations — Per-Gate Files
 
@@ -152,8 +146,12 @@ Each gate's raw observations go into a dedicated file (`g1d0.log` through `g6d0.
   implies / results in        ✓  confirmed
 ?  hypothesis / unconfirmed    ✗  ruled out / dead end
 ~  likely / probable           !  important / notable
-§  section reference           ent_NNN  log entry reference
+§  section reference
 ```
+
+### Entry ID Format
+
+Every entry uses a gate-qualified ID: `gN:NNN` (e.g., `g1:001`, `g2:014`, `g6:103`). The gate prefix is self-locating — `g2:014` means "open `g2d0.log`, find entry 014." See `references/log-format.md` → ID Format for full rules.
 
 ### When to Write (Trigger-Based)
 
@@ -161,12 +159,12 @@ Write to the log at these trigger points — not every step, but at meaningful b
 
 | Trigger | What to Write | Write To |
 |---------|---------------|----------|
-| Phase boundary (P8, P13, P16, P22, P27, P31) | D2:State update + D1 if phase complete | state.log |
-| Context pressure (feeling uncertain about prior state) | D2:State with context_risk: MEDIUM/HIGH + re-read | state.log |
+| Phase boundary (P8, P13, P16, P22, P27, P31) | D2:State replacement + D1 if phase complete | state.log |
+| Context pressure (feeling uncertain about prior state) | D2:State replacement | state.log |
 | BLOCKER or unexpected discovery | D0 entry immediately | current gate D0 |
-| Budget checkpoint (P8, P13, P16) | BUDGET_STATUS entry | state.log |
-| Operator spot-check ("show me your D2:State") | D2:State update | state.log |
-| Investigation complete | Final D2:State + BUDGET_STATUS | state.log |
+| Budget checkpoint (P8, P13, P16) | BUDGET_STATUS entry | current gate D0 |
+| Operator spot-check ("show me your D2:State") | D2:State replacement | state.log |
+| Investigation complete | Final D2:State replacement | state.log |
 | Any observation, probe, or test result | Typed entry | current gate D0 |
 
 **Do NOT write after every single step.** That causes batch-write drift — you'll be tempted to defer writing and then dump everything at once. Write at triggers, and you'll naturally maintain a living document.
@@ -175,10 +173,10 @@ Write to the log at these trigger points — not every step, but at meaningful b
 
 When resuming after context loss, read in this EXACT order:
 
-1. **state.log** — Where am I? The last D2:State entry tells you your phase, budget, `last_entry`, and `current_d0`. All D1 summaries are here too.
+1. **state.log** — Where am I? D2:State tells you your phase, budget, and `current_d0`. All D1 summaries are here too.
 2. **site_brief.md** — What am I looking for? The operator's requirements. (Trust the most recent D2:State over site_brief if they disagree on framework/technology identification.)
 3. **Current gate D0 file** — What did I just observe? Read the file named in `current_d0` from D2:State.
-4. **Older gate D0 files** — Only if needed. The D1 summary in state.log tells you which gate file to open (`→ gNd0.log`). Read only the specific file you need.
+4. **Older gate D0 files** — Only if needed. The D1 summary's `ents:` range (e.g., `ents: g1:001-g1:011`) tells you exactly which gate file and which entry numbers to read.
 
 Total recovery cost: ~200-400 tokens for steps 1-2. Step 3 adds ~100-300 tokens. Step 4 on demand only.
 
@@ -243,7 +241,7 @@ Key outputs: content item types and selectors identified, pagination mechanism c
 
 **Purpose:** Determine what a scraper needs to send to get content — which headers, cookies, and tokens are required.
 
-**HTTP Request Chain output (at P27):** After Phase 5 completes, state.log MUST contain a SYSTEM entry `HTTP_REQUEST_CHAIN` that documents the sequenced dependency map of all discovered requests. This chain is the recipe for building a scraper — it tells the analyser exactly what to send, in what order, with what headers and cookies. Combined with the `COOKIE_DEPENDENCY_MAP` from P7, the analyser has complete knowledge of the request acquisition sequence.
+**HTTP Request Chain output (at P27):** After Phase 5 completes, the current gate D0 file MUST contain a SYSTEM entry `HTTP_REQUEST_CHAIN` that documents the sequenced dependency map of all discovered requests. This chain is the recipe for building a scraper — it tells the analyser exactly what to send, in what order, with what headers and cookies. Combined with the `COOKIE_DEPENDENCY_MAP` from P7, the analyser has complete knowledge of the request acquisition sequence. The Gate 5 D1 summary's `ents:` range includes this entry.
 
 ### Phase 6: Edge Case Battery (~5 cycles)
 
@@ -305,7 +303,7 @@ Start at 1 second between requests. After each response, adjust based on latency
 - Infinite redirect loop (>20 hops)
 - Budget exhausted
 
-When a BLOCKER is hit: log SYSTEM entry to current gate D0 + BUDGET_STATUS to state.log, halt. The log is still valuable — Agent 2 works with whatever was captured.
+When a BLOCKER is hit: log SYSTEM entry + BUDGET_STATUS to current gate D0, halt. Replace D2:State in state.log. The log is still valuable — Agent 2 works with whatever was captured.
 
 ### Soft Failures (log and continue)
 
@@ -323,7 +321,7 @@ Budget is measured in **decision cycles** — one cycle = one LLM reasoning turn
 - Re-investigation: 5 cycles per request item
 - Page limit: 15 pages default (adjustable)
 
-Log BUDGET_STATUS entries to `state.log` at P8, P13, P16, and when budget is exhausted.
+Log BUDGET_STATUS entries to the current gate D0 file at P8, P13, P16, and when budget is exhausted. The D1 summary's `ents:` range includes these entries, making them discoverable from state.log.
 
 ---
 
@@ -350,8 +348,8 @@ After completing **mandatory baseline (P1–P8)** and **content discovery (P9–
 
 ```
 FIRST-PASS HALT (after P13 completes):
-  1. Write final BUDGET_STATUS to state.log
-  2. Write SYSTEM entry to state.log: "INVESTIGATION_FIRST_PASS_COMPLETE"
+  1. Write final BUDGET_STATUS to current gate D0 file (g2d0.log)
+  2. Write SYSTEM entry to current gate D0 file: "INVESTIGATION_FIRST_PASS_COMPLETE"
   3. Output to operator:
      "First pass complete. state.log + g1d0.log + g2d0.log written.
       Baseline: {M} cycles. Content discovery: {K} cycles.
@@ -382,8 +380,7 @@ FIRST-PASS HALT (after P13 completes):
 - Batch-write the entire log at the end
 - Name output files anything other than `state.log` and `g{N}d0.log`
 - Use chat as the observation channel — see `references/writing-protocol.md` → Output Channel Discipline
-- Write raw observations to state.log — observations go in the current gate D0 file
-- Write BUDGET_STATUS or key synthesis SYSTEM entries to gate D0 files — they go in state.log
+- Write any typed entry (BUDGET_STATUS, SYSTEM, COOKIE_DEPENDENCY_MAP, etc.) to state.log — ALL typed entries go in the current gate D0 file; state.log is D2 + D1 only
 
 ---
 

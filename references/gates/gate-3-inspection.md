@@ -20,11 +20,9 @@ If any prerequisite is missing, return to the appropriate gate file before proce
 
 | What | File | Why |
 |------|------|-----|
-| Raw observations | `g3d0.log` | Gate-scoped raw data |
+| Raw observations (all typed entries including BUDGET_STATUS, site brief verification, etc.) | `g3d0.log` | Gate-scoped D0 — all typed entries go here |
 | D2:State updates | `state.log` | State checkpoint |
 | D1: Item Inspection Phase Summary | `state.log` | Phase completion record |
-| BUDGET_STATUS (at P16) | `state.log` | Budget checkpoint |
-| Site brief field verification (P16b) | `state.log` | Verification artifact |
 
 ## Quick Phase Map
 
@@ -32,7 +30,7 @@ If any prerequisite is missing, return to the appropriate gate file before proce
 |-------|-------|---------|
 | Phase 3 | P14 → P16b | Content item entry — verify item structure |
 
-**Write gate at P16.** All pending observations must be logged, D2:State updated, D1 Phase Summary written, BUDGET_STATUS written, before proceeding to Gate 4.
+**Write gate at P16.** All pending observations must be logged, D2:State updated, D1 Phase Summary written, BUDGET_STATUS written to g3d0.log, before proceeding to Gate 4.
 
 ---
 
@@ -213,5 +211,5 @@ Before proceeding to Gate 4, verify:
 ☐ Site brief field verification completed (P16b)
 ☐ D2:State updated
 ☐ D1: Item Inspection Phase Summary written
-☐ BUDGET_STATUS written
+☐ BUDGET_STATUS written (to g3d0.log)
 ☐ Re-read `references/gates/gate-4-exploration.md` BEFORE writing first entry of Gate 4

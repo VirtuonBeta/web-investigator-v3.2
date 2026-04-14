@@ -16,7 +16,7 @@ The investigation produces **7 files** — one state file and one raw-observatio
 
 ```
 output/
-├── state.log          ← D2:State + D1 summaries + BUDGET_STATUS + key synthesis artifacts
+├── state.log          ← D2:State (replaced at top) + D1 summaries (bottom-up)
 ├── g1d0.log           ← Raw observations from Gate 1 (P0–P8a)
 ├── g2d0.log           ← Raw observations from Gate 2 (P9–P13c)
 ├── g3d0.log           ← Raw observations from Gate 3 (P14–P16b)
@@ -88,7 +88,7 @@ Resume procedure:
 2. Read state.log — start with the last D2:State entry, then read all D1 sections. This IS your context recovery.
 3. Read references/gates/gate-3-inspection.md — this is your instruction set for Phase 3 (subsequent phases have their own gate files).
 4. Read references/writing-protocol.md — re-fresh the discipline rules.
-5. Resume from where D2:State says you left off. Continue appending to the SAME files — state.log for state, g3d0.log for Gate 3 raw observations.
+5. Resume from where D2:State says you left off. Continue writing to the SAME files — state.log for D2:State (replaced at top) and D1 summaries, g3d0.log for Gate 3 raw observations.
 
 The operator has approved continuing past the first-pass halt. Begin Phase 3 (P14-P16b).
 
@@ -168,7 +168,7 @@ The agent reads `SKILL.md` first for context, then consults the `references/` fi
 | Edge Cases | P28 → P31 | Empty UA, cookie-less, rate limits | g6d0.log |
 | Re-Investigation | P32+ | Targeted follow-ups from Agent 2 | g6d0.log |
 
-All phases also write to `state.log` for D2:State updates, D1 summaries, BUDGET_STATUS, and key synthesis artifacts.
+All phases also write to `state.log` for D2:State updates and D1 summaries. All typed entries (BUDGET_STATUS, SYSTEM, COOKIE_DEPENDENCY_MAP, etc.) go to the current gate D0 file.
 
 ## EU Sites
 
@@ -185,10 +185,10 @@ This matters because on sites like DN.se or SVT.se, rejecting consent truncates 
 | Artifact | Where | What It Tells You |
 |----------|-------|-------------------|
 | Extraction Stability Matrix | P22 (g4d0.log) | Which fields have stable extraction paths vs. which will break on deploy |
-| HTTP Request Chain | P27 (state.log) | Step-by-step recipe for constructing valid scraper requests |
-| Cookie Dependency Map | P7 (state.log) | Which cookies to obtain and in what order |
+| HTTP Request Chain | P27 (g5d0.log) | Step-by-step recipe for constructing valid scraper requests |
+| Cookie Dependency Map | P7 (g1d0.log) | Which cookies to obtain and in what order |
 | Extraction Map | P3, P5, P15 (g1d0, g3d0) | Field-to-path mapping with best and fallback paths |
-| Consent Flow Map | P7c (state.log, EU only) | Which consent categories gate which content zones |
+| Consent Flow Map | P7c (g1d0.log, EU only) | Which consent categories gate which content zones |
 | Fingerprint Type | P13b (g2d0.log) | Whether fingerprinting is header-based or TLS-based |
 
 ## Limitations

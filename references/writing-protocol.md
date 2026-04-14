@@ -9,7 +9,7 @@ Read this file BEFORE starting the investigation AND at each phase gate.
 ## Quick Reference (read at phase gates; full document available for deep reference)
 
 ### Gate Triggers
-P8, P13, P16, P22, P27, P31 — STOP, write all pending observations, update D2:State, write D1 phase summary, write BUDGET_STATUS (at P8, P13, P16).
+P8, P13, P16, P22, P27, P31 — STOP, write all pending observations, update D2:State, write D1 phase summary, write BUDGET_STATUS to current gate D0 (at P8, P13, P16).
 
 ### Banned Phrases
 | Banned | Use Instead |
@@ -49,7 +49,7 @@ P8, P13, P16, P22, P27, P31 — STOP, write all pending observations, update D2:
 - One entry per observation/action. Never bundle.
 - D0 = observations. D1 = phase summaries. D2 = living state.
 - Errata for corrections. Never edit existing entries.
-- If any BUDGET_STATUS field contradicts D2:State, D2 takes precedence. Flag the contradiction in the notes field and update the field to match D2.
+- If any BUDGET_STATUS field contradicts D2:State, D2 takes precedence. Flag the contradiction in the BUDGET_STATUS notes field and update the field to match D2.
 
 ---
 
@@ -61,13 +61,13 @@ At each gate you MUST:
 
 1. **Stop what you are doing.** Do not proceed to the next phase.
 2. **Write all pending observations** to the current gate's D0 file (`g{N}d0.log`) as properly typed entries.
-3. **Update D2:State** — append to `state.log` with current phase, key findings, dead ends, budget, `last_entry`, and `current_d0`.
-4. **Write D1 Phase Summary** — append to `state.log` for the completed phase (see §9 — Mandatory D1 Phase Summaries). Include `→ g{N}d0.log` suffix.
-5. **Write BUDGET_STATUS** — append to `state.log` (at P8, P13, P16 gates — other gates only if budget changed significantly).
+3. **Replace D2:State** at the top of `state.log` with current phase, key findings, dead ends, budget, and `current_d0`.
+4. **Write D1 Phase Summary** in `state.log` for the completed phase (see §9 — Mandatory D1 Phase Summaries). Include `ents:` index range (e.g., `ents: g1:001-g1:011`).
+5. **Write BUDGET_STATUS** — append to current gate D0 file (at P8, P13, P16 gates — other gates only if budget changed significantly). The BUDGET_STATUS entry is included in the D1 summary's `ents:` range.
 
 **Why hard gates exist:** Without forced write points, agents naturally defer writing ("I'll do it after this one more thing") until they batch-dump everything at the end. This destroys the incremental-write property and means:
 - If the run is interrupted, all unwritten observations are lost.
-- Timestamps are fabricated (backdated to when the observation happened, not when it was written).
+- Cycle numbers are not fabricated — they come from the budget counter, which is ground truth.
 - The analyst gets no intermediate data.
 
 **Skipping a gate violates the output contract.** There are no exceptions.
@@ -78,10 +78,9 @@ At each gate, verify:
 
 ```
 ☐ All D0 observations from this phase are logged as typed entries in the gate D0 file
-☐ D2:State is appended to state.log with current phase and findings
-☐ D1 Phase Summary is appended to state.log for the completed phase (MANDATORY — see §9)
-☐ BUDGET_STATUS is appended to state.log (P8, P13, P16)
-☐ Entry IDs are sequential and no IDs are skipped
+☐ D2:State is replaced at the top of state.log with current phase and findings
+☐ D1 Phase Summary is inserted in state.log above previous D1 for the completed phase (MANDATORY — see §9)
+☐ BUDGET_STATUS is appended to current gate D0 file (P8, P13, P16)
 ☐ No entry contains banned phrases (see Quick Reference above)
 ☐ For each entry: all core fields present; conditional fields filled if first-of-type or 10-entry gap
 ☐ Re-read the next gate file (see SKILL.md → Reference Files for the phase-to-file map)
@@ -97,7 +96,7 @@ The agent has two output channels:
 | Channel | Purpose | Content |
 |---------|---------|---------|
 | Gate D0 file (`g{N}d0.log`) | Observation log | All raw observations |
-| `state.log` | State & summaries | D2:State, D1 summaries, BUDGET_STATUS, key synthesis artifacts |
+| `state.log` | State & summaries | D2:State, D1 summaries only — no typed entries |
 | Chat | Operator coordination | Status updates, questions, BLOCKER reports, first-pass halt |
 
 ### Chat Rules
@@ -136,7 +135,7 @@ Read ALL reference files once at investigation start (Phase 0). After that, re-r
 | Before writing an entry type you haven't written in the last 5 entries | `references/log-format.md` → section for that entry type | Ensure entry matches the spec |
 | Before writing an entry type for the FIRST time | `references/log-format.md` → section for that entry type | Full spec compliance on first use |
 | At each gate: "Any entry types I've written fewer than 3 times this investigation?" | Re-read those log-format.md sections now | Reinforce rare entry format |
-| When D2:State shows context_risk: MEDIUM/HIGH | `state.log` (last D2:State + relevant D1) | Recover from context loss |
+| When context pressure is felt (uncertain about prior state) | `state.log` (last D2:State + relevant D1) | Recover from context loss |
 | Before Phase 4 (deep exploration) | `references/gates/gate-4-exploration.md` | Deep exploration steps are conditional — re-read to know which apply |
 | When entering Phase 5 (request replay) | `references/log-format.md` → REQUEST type | Replay entries require complete req_headers/res_headers |
 | After investigation completes | `references/compaction.md` | Compaction procedure for final log |
@@ -194,7 +193,7 @@ Work on one phase at a time. Do not:
 
 - **Skip ahead** to later phases because the current phase "seems simple" — you may miss critical observations.
 - **Mix phases** — if you're in Phase 2 (P9-P13), don't start Phase 4 (P17-P22) observations.
-- **Revisit completed phases** unless you have an explicit reason (e.g., D2:State context_risk: HIGH, or operator instruction).
+- **Revisit completed phases** unless you have an explicit reason (e.g., operator instruction).
 
 ### Phase Transitions
 
@@ -260,9 +259,9 @@ At phase gates, you may not have time to write full detailed entries for every o
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2025-01-15T10:23:45.123Z  REQUEST
+cycle: 14  REQUEST
 
-id:                   ent_004
+id:                   g2:003
 phase:                1
 source:               cdp_passive
 method:               GET
@@ -275,9 +274,9 @@ Later, expand it:
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2025-01-15T10:23:45.123Z  REQUEST
+cycle: 14  REQUEST
 
-id:                   ent_004
+id:                   g2:003
 phase:                1
 source:               cdp_passive
 method:               GET
@@ -321,8 +320,7 @@ After writing each observation entry, perform this self-check:
    since the last entry of this type?
    → If no: fill missing core fields. Fill conditional fields if required.
 
-4. Is the timestamp the actual time of writing (not backdated)?
-   → Backdating is prohibited. Use the current time.
+4. Cycle number: is the `cycle: N` value correct (matches the current decision cycle count)? Is the `id` in `gN:NNN` format with the correct gate prefix?
 
 5. Is this an observation, not a conclusion?
    → If it contains causal language ("because", "therefore"), rewrite as raw facts.
@@ -343,12 +341,15 @@ This 7-point check takes seconds but catches the most common log quality failure
 At EVERY phase gate (P8, P13, P16, P22, P27, P31), BEFORE proceeding to the next phase, write a D1 section summarizing the completed phase. Format:
 
 ```
-## D1: {Phase Name} (P{start}-P{end})
+## D1: {Phase Name} (P{start}-P{end}) | ents: g{N}:{first}-g{N}:{last}
 
 {2-5 sentence summary of key findings, dead ends, and open questions from
-this phase. Include specific entry references (ent_NNN) for the most
-important observations.}
+this phase. Include gN:NNN references for the most important observations.}
 ```
+
+The `ents:` range is the index — it tells the reader exactly which gate D0 file and which entry numbers contain the raw observations for this phase. Example: `ents: g1:001-g1:011` means "open `g1d0.log`, entries g1:001 through g1:011."
+
+**D1 ordering:** Summaries are written **bottom-up** (newest above oldest). When you write a new D1 at a gate, insert it ABOVE the previous D1. This means the most recently completed phase is always the first D1 you read after D2:State — which is the phase most likely to need context recovery.
 
 This is MANDATORY, not optional. The D1 summary is the primary context recovery artifact. It must be written while context about the phase is fresh — not retroactively.
 
@@ -378,7 +379,7 @@ What does NOT count:
 - SYSTEM entries that are automatic (errata, dependency maps)
 - CDP passive captures
 
-Total cost: ~200 tokens every 6 cycles (D2 + D1 re-read). This is the primary context maintenance mechanism. `context_risk` in D2:State is a secondary signal.
+Total cost: ~200 tokens every 6 cycles (D2 + D1 re-read).
 
 ---
 
@@ -387,7 +388,7 @@ Total cost: ~200 tokens every 6 cycles (D2 + D1 re-read). This is the primary co
 The log is APPEND-ONLY. Never modify an existing entry.
 
 Errata (the only mechanism for corrections) requires:
-- `corrects_entry`: the ent_NNN of the original
+- `corrects_entry`: the gate-qualified ID (`gN:NNN`) of the original entry
 - `field`: which field is being corrected
 - `original_value`: the exact text of the original
 - `corrected_value`: the corrected text
