@@ -1,0 +1,88 @@
+# g2d0.log — Gate 2 Raw Observations (P9–P13c)
+
+Example output from a first-pass investigation of a non-EU site. This file contains only raw observation entries — state and summaries are in state.log.
+
+---
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-04-12T08:15:10.000Z  DOM_SNAPSHOT
+
+id:                   ent_012
+phase:                2
+source:               agent_active
+context:              content_structure
+render_type:          SSR
+article_count_visible: 24
+root_selector:        "main.stream"
+card_selector:        ".article-card"
+class_type:           semantic
+stable_selectors:     ["article", "h2.headline", "time.datetime"]
+brittle_selectors:    []
+notes:                "24 article cards visible on first load. Each card: headline, byline, timestamp, thumbnail, category tag."
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-04-12T08:15:12.000Z  EDGE_CASE_TEST
+
+id:                   ent_015
+phase:                2
+source:               agent_active
+test_id:              INTERSECTION_OBSERVER_DETECTED
+description:          Items load in batches when scrolling into viewport
+method:               scroll
+url:                  https://example.com/news/crypto
+cookies_sent:         all
+result:               "Items appear in batches of ~8 after scrolling 500px. 2-second delay between batch load and DOM render."
+diff_from_normal:     "N/A — this IS the normal loading mechanism"
+anomalies:            []
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-04-12T08:15:14.000Z  REQUEST
+
+id:                   ent_017
+phase:                2
+source:               cdp_passive
+method:               GET
+url:                  https://example.com/v2/articles?cursor=abc123
+trigger:              click
+resource_type:        fetch
+res_status:           200
+res_body_type:        json
+res_body_sample:      {"items":[{"id":"art-025","headline":"...","author":"..."}],"next_cursor":"def456","has_more":true}
+res_body_schema:      { type: "object", properties: { items: { type: "array", items: { type: "object" } }, next_cursor: { type: "string" }, has_more: { type: "boolean" } } }
+res_body_truncated:   false
+notes:                Cursor-based pagination API. Batch size: 8 items. has_more signal present.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-04-12T08:15:18.000Z  EDGE_CASE_TEST
+
+id:                   ent_018
+phase:                2
+source:               agent_active
+test_id:              DEEP_WEB_ENDPOINT_FOUND
+description:          Search form triggers XHR to /v2/search — deep web endpoint
+method:               browser_click
+url:                  https://example.com/v2/search?q=test
+cookies_sent:         all
+result:               "200 OK. 15 items returned. JSON response with items array. No pagination fields in response."
+diff_from_normal:     "Different endpoint and response structure from /v2/articles pagination"
+anomalies:            ["Search endpoint returns fewer items than articles endpoint and has no pagination"]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-04-12T08:15:20.000Z  EDGE_CASE_TEST
+
+id:                   ent_019
+phase:                2
+source:               agent_active
+test_id:              PAGINATION_REPLAY
+description:          Raw HTTP replay of pagination endpoint
+method:               http_raw_request
+url:                  https://example.com/v2/articles?cursor=abc123
+cookies_sent:         none
+result:               "200 OK. Same JSON response as browser. No cookies or special headers required."
+diff_from_normal:     null
+anomalies:            []
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

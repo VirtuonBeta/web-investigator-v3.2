@@ -14,6 +14,16 @@ Before using this file, you should already have (from `references/gates/gate-1-b
 
 If any prerequisite is missing, return to `references/gates/gate-1-baseline.md` before proceeding.
 
+## Write Targets
+
+| What | File | Why |
+|------|------|-----|
+| Raw observations | `g2d0.log` | Gate-scoped raw data |
+| D2:State updates | `state.log` | State checkpoint |
+| D1: Content Discovery Phase Summary | `state.log` | Phase completion record |
+| BUDGET_STATUS (at P13) | `state.log` | Budget checkpoint |
+| INVESTIGATION_FIRST_PASS_COMPLETE | `state.log` | Lifecycle milestone |
+
 ## Quick Phase Map
 
 | Phase | Steps | Purpose |

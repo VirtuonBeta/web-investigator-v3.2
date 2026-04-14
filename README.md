@@ -5,10 +5,27 @@ An AI agent that explores websites and produces structured observation logs for 
 ## How It Works
 
 ```
-You write a site brief → Agent investigates → It produces s1_log.md → You (or Agent 2) build a scraper
+You write a site brief → Agent investigates → It produces state.log + g1d0.log through g6d0.log → You (or Agent 2) build a scraper
 ```
 
 The investigator observes only. It never analyzes, concludes, or recommends. Every claim in the log is a verifiable fact with an entry ID.
+
+## Output Files
+
+The investigation produces **7 files** — one state file and one raw-observation file per gate:
+
+```
+output/
+├── state.log          ← D2:State + D1 summaries + BUDGET_STATUS + key synthesis artifacts
+├── g1d0.log           ← Raw observations from Gate 1 (P0–P8a)
+├── g2d0.log           ← Raw observations from Gate 2 (P9–P13c)
+├── g3d0.log           ← Raw observations from Gate 3 (P14–P16b)
+├── g4d0.log           ← Raw observations from Gate 4 (P17–P22)
+├── g5d0.log           ← Raw observations from Gate 5 (P23–P27)
+└── g6d0.log           ← Raw observations from Gate 6 (P28–P32+)
+```
+
+**Why split files?** At each gate, the agent re-reads state to recover context. With a single monolithic log, that re-read grows to 2000+ lines. With split files, reading `state.log` (~150-250 lines) gives the agent its full state + summaries, and it only opens a specific gate D0 file when it needs raw observations.
 
 ## Quick Start
 
@@ -38,20 +55,20 @@ site_brief.md is located at {EXACT_PATH} — you will read it during the Pre-Bri
 4. Begin the investigation from Phase 0 (Pre-Flight).
 5. Stop at the first-pass halt (after P13c) and output the full halt message per SKILL.md §First-Pass Halt — include entry count, cycle breakdown, budget remaining, key findings, and next steps.
 
-Write s1_log.md to {OUTPUT_DIRECTORY}.
+Write state.log and g1d0.log, g2d0.log to {OUTPUT_DIRECTORY}.
 
 Rules:
 - After writing each entry, do the 5-point self-check from writing-protocol.md §8
 - Re-read log-format.md before writing ANY entry
 - Re-read writing-protocol.md at every phase gate (P8, P13, P16, P22, P27, P31)
-- Never proceed past a phase gate without writing to s1_log.md first
-- If you're unsure what phase you're in, re-read D2:State
-- Chat is for coordination only. All observations go to s1_log.md
+- Never proceed past a phase gate without writing to the log files first
+- If you're unsure what phase you're in, re-read D2:State in state.log
+- Chat is for coordination only. All observations go to gate D0 files, all state to state.log
 ```
 
 ### 3. Review the first pass
 
-The agent produces `s1_log.md`. Check:
+The agent produces `state.log` + `g1d0.log` + `g2d0.log`. Check:
 
 - Did it find the content structure and pagination API?
 - Were there any BLOCKERs (CAPTCHAs, 403s)?
@@ -64,14 +81,14 @@ Tell the agent to:
 - **Stop** — the first-pass log may be enough for simple sites
 - **Adjust** — change budget or add known technology, then continue
 prompt example
-```You are Agent 1 (Web Investigator v3.2). You previously ran an investigation through the first-pass halt (P13c). Your context was reset. Your prior work is in s1_log.md at {PATH}.
+```You are Agent 1 (Web Investigator v3.2). You previously ran an investigation through the first-pass halt (P13c). Your context was reset. Your prior work is in state.log and g1d0.log/g2d0.log at {PATH}.
 
 Resume procedure:
 1. Read SKILL.md
-2. Read your s1_log.md — start with D2:State at the top, then D1 sections, then scan D0. This IS your context recovery.
+2. Read state.log — start with the last D2:State entry, then read all D1 sections. This IS your context recovery.
 3. Read references/gates/gate-3-inspection.md — this is your instruction set for Phase 3 (subsequent phases have their own gate files).
 4. Read references/writing-protocol.md — re-fresh the discipline rules.
-5. Resume from where D2:State says you left off. Continue appending to the SAME s1_log.md file.
+5. Resume from where D2:State says you left off. Continue appending to the SAME files — state.log for state, g3d0.log for Gate 3 raw observations.
 
 The operator has approved continuing past the first-pass halt. Begin Phase 3 (P14-P16b).
 
@@ -79,10 +96,10 @@ Rules still apply:
 - 5-point self-check after each entry (writing-protocol.md §8)
 - Re-read log-format.md before writing ANY entry
 - Re-read writing-protocol.md at every phase gate (P16, P22, P27, P31)
-- Chat is for coordination only. All observations go to s1_log.md# s1_log.md — Web Investigator Agent 1
+- Chat is for coordination only. Raw observations go to gate D0 files, state goes to state.log
 ```
 
-### 5. continue or stop
+### 5. Continue or stop
 it should come back with example:
 ```
 Remaining unexplored (optional, 23 cycles available):
@@ -90,7 +107,7 @@ Rate limit testing on /xhr/news (P31)
 Empty UA test (P28)
 Cookie-less request test (P29)
 JS bundle analysis (lower priority given /xhr/news discovery)
-s1_log.md is ready for handoff to Agent 2.
+Log files (state.log + g1d0.log through g6d0.log) are ready for handoff to Agent 2.
 ```
 either let it explore the missing pieces on its own or if all gotten feed to agent 2:
 
@@ -129,7 +146,9 @@ web-investigator/
 │   ├── compaction.md                # Post-investigation log cleanup
 │   └── cdp-infrastructure.md        # CDP setup, capture filter, volume management
 ├── examples/
-│   └── s1_log_example.md            # Example first-pass output
+│   ├── state.log                    # Example state + summaries output
+│   ├── g1d0.log                     # Example Gate 1 raw observations
+│   └── g2d0.log                     # Example Gate 2 raw observations
 └── README.md                        # This file
 ```
 
@@ -137,17 +156,19 @@ The agent reads `SKILL.md` first for context, then consults the `references/` fi
 
 ## Investigation Pipeline
 
-| Phase | Steps | What Happens |
-|-------|-------|-------------|
-| Pre-flight | Pre-Brief → Pre-P2 | Read your brief, validate CDP, warm up the browser |
-| Baseline | P1 → P8a | Map the DOM, find embedded data, catalog cookies, parse robots/sitemap |
-| Content Discovery | P9 → P13c | Find content items, identify pagination, probe search forms |
-| **First-pass halt** | — | **You review before continuing** |
-| Item Entry | P14 → P16b | Click into items, map extraction paths, detect hidden content |
-| Deep Exploration | P17 → P22 | API probing, token tracing, JS bundle analysis, stability matrix |
-| Request Replay | P23 → P27 | What headers, cookies, and tokens does a scraper need? |
-| Edge Cases | P28 → P31 | Empty UA, cookie-less, rate limits |
-| Re-Investigation | P32+ | Targeted follow-ups from Agent 2 |
+| Phase | Steps | What Happens | Output File |
+|-------|-------|-------------|-------------|
+| Pre-flight | Pre-Brief → Pre-P2 | Read your brief, validate CDP, warm up the browser | g1d0.log |
+| Baseline | P1 → P8a | Map the DOM, find embedded data, catalog cookies, parse robots/sitemap | g1d0.log |
+| Content Discovery | P9 → P13c | Find content items, identify pagination, probe search forms | g2d0.log |
+| **First-pass halt** | — | **You review before continuing** | — |
+| Item Entry | P14 → P16b | Click into items, map extraction paths, detect hidden content | g3d0.log |
+| Deep Exploration | P17 → P22 | API probing, token tracing, JS bundle analysis, stability matrix | g4d0.log |
+| Request Replay | P23 → P27 | What headers, cookies, and tokens does a scraper need? | g5d0.log |
+| Edge Cases | P28 → P31 | Empty UA, cookie-less, rate limits | g6d0.log |
+| Re-Investigation | P32+ | Targeted follow-ups from Agent 2 | g6d0.log |
+
+All phases also write to `state.log` for D2:State updates, D1 summaries, BUDGET_STATUS, and key synthesis artifacts.
 
 ## EU Sites
 
@@ -163,12 +184,12 @@ This matters because on sites like DN.se or SVT.se, rejecting consent truncates 
 
 | Artifact | Where | What It Tells You |
 |----------|-------|-------------------|
-| Extraction Stability Matrix | P22 | Which fields have stable extraction paths vs. which will break on deploy |
-| HTTP Request Chain | P27 | Step-by-step recipe for constructing valid scraper requests |
-| Cookie Dependency Map | P7 | Which cookies to obtain and in what order |
-| Extraction Map | P3, P5, P15 | Field-to-path mapping with best and fallback paths |
-| Consent Flow Map | P7c (EU only) | Which consent categories gate which content zones |
-| Fingerprint Type | P13b | Whether fingerprinting is header-based or TLS-based |
+| Extraction Stability Matrix | P22 (g4d0.log) | Which fields have stable extraction paths vs. which will break on deploy |
+| HTTP Request Chain | P27 (state.log) | Step-by-step recipe for constructing valid scraper requests |
+| Cookie Dependency Map | P7 (state.log) | Which cookies to obtain and in what order |
+| Extraction Map | P3, P5, P15 (g1d0, g3d0) | Field-to-path mapping with best and fallback paths |
+| Consent Flow Map | P7c (state.log, EU only) | Which consent categories gate which content zones |
+| Fingerprint Type | P13b (g2d0.log) | Whether fingerprinting is header-based or TLS-based |
 
 ## Limitations
 

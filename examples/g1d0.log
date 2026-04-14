@@ -1,0 +1,128 @@
+# g1d0.log — Gate 1 Raw Observations (P0–P8a)
+
+Example output from a first-pass investigation of a non-EU site. This file contains only raw observation entries — state and summaries are in state.log.
+
+---
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-04-12T08:14:58.000Z  SYSTEM
+
+id:                   ent_001
+phase:                0
+source:               system
+event:                custom
+description:          "site_brief read"
+details:
+  target_url:         "https://example.com/news/crypto"
+  content_type:       "news_aggregation"
+  target_fields:      ["headline", "author", "publish_date", "article_body", "category", "source"]
+  open_questions:     ["pagination mechanism?", "auth required?", "rate limits?"]
+  known_issues:       []
+  known_technology:   ["Next.js Pages Router"]
+  auth_required:      false
+  max_cycles:         60
+  page_limit:         15
+  geo_requirements:   NONE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-04-12T08:15:00.000Z  SYSTEM
+
+id:                   ent_002
+phase:                0
+source:               system
+event:                cdp_health_check
+description:          "CDP capture validated — test request appeared in capture"
+details:              {}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-04-12T08:15:03.500Z  SYSTEM
+
+id:                   ent_003
+phase:                0
+source:               system
+event:                navigated
+description:          "Navigated to https://example.com/news/crypto"
+details:              {}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-04-12T08:15:04.200Z  DOM_SNAPSHOT
+
+id:                   ent_004
+phase:                1
+source:               agent_active
+context:              initial_load
+render_type:          SSR
+embedded_data_blocks: [{ "selector": "script#__NEXT_DATA__", "format": "json", "size_estimate": "24KB" }]
+article_count_visible: 24
+root_selector:        "main.stream"
+card_selector:        ".article-card"
+class_type:           semantic
+stable_selectors:     ["article", "h2.headline", "time.datetime", "a[href*='/news/']"]
+brittle_selectors:    []
+exclusion_selectors:  ["[class*='ad-']", "[class*='newsletter']", "[class*='related']"]
+extraction_map:
+  headline:
+    best_path: "ld+json.headline"
+    best_type: structured_data
+    fallbacks: [{path: "h2.headline", type: semantic_html}, {path: ".article-card-title", type: class_semantic}]
+    stability_risk: LOW
+  author:
+    best_path: "ld+json.author.name"
+    best_type: structured_data
+    fallbacks: [{path: "[rel='author']", type: semantic_html}, {path: ".byline", type: class_semantic}]
+    stability_risk: LOW
+  publish_date:
+    best_path: "ld+json.datePublished"
+    best_type: structured_data
+    fallbacks: [{path: "time[datetime]", type: semantic_html}]
+    stability_risk: LOW
+  article_body:
+    best_path: "article"
+    best_type: semantic_html
+    fallbacks: [{path: ".article-body", type: class_semantic}]
+    stability_risk: MEDIUM
+notes:                "Standard article card layout. Each card has headline, byline, timestamp, thumbnail."
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-04-12T08:15:06.500Z  COOKIE
+
+id:                   ent_008
+phase:                1
+source:               cdp_passive
+name:                 A1
+value_sample:         s=1:v=1:m=1:c=1:t=1712906100
+domain:               .example.com
+path:                 /
+expires:              2028-04-12T08:15:00Z
+httpOnly:             true
+secure:               true
+sameSite:             None
+inferred_purpose:     session
+set_by:               page_load
+set_by_request:       ent_003
+notes:                Primary session cookie; set on initial page load
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-04-12T08:15:06.600Z  COOKIE
+
+id:                   ent_009
+phase:                1
+source:               cdp_passive
+name:                 A1S
+value_sample:                         tqn7b2v23cr45
+domain:               .example.com
+path:                 /
+expires:              session
+httpOnly:             true
+secure:               true
+sameSite:             None
+inferred_purpose:     auth
+set_by:               page_load
+set_by_request:       ent_003
+notes:                Auth-related cookie; session-scoped; set alongside A1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

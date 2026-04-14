@@ -1,0 +1,88 @@
+# state.log — Example First-Pass Output
+
+This example shows the state.log file from a completed first-pass investigation of a non-EU site. The agent appends to this file incrementally — D2:State updates at trigger points, D1 summaries at gate boundaries, and BUDGET_STATUS at budget checkpoints.
+
+For EU sites, additional entries would include: Pre-Brief `geo_requirements: EU`, P7c consent flow mapping, and consent-dependent content observations.
+
+---
+
+## D2: State
+Phase: P13 | Key: SSR, /v2/articles, cursor pagination, no auth, IO lazy loading
+Dead ends: shadow DOM ✗, GraphQL ✗ | Open: cursor token type? rate limit?
+Budget: 21/60 cycles used | last_entry: ent_021 | current_d0: g2d0.log
+context_risk: LOW | Last checkpoint: P13
+
+## D1: Baseline (P0-P8a) → g1d0.log
+CDP ✓, SSR (Next.js Pages Router), cookies 8 (2 auth: A1S, A3)
+Window globals: __NEXT_DATA__ with pageProps → 24 items
+Sitemap: 142 URLs, 6 pattern clusters. Deep web: /search?q= (3 URLs)
+robots.txt: no specific UA blocks, Crawl-delay: 1
+Cookie dependency: Step 1 GET / → [A1, A1S, GUCS, A3] → Step 2 GET /v2/articles requires [A1, A1S]
+
+## D1: Content Discovery (P9-P13c) → g2d0.log
+24 items visible on first load, IntersectionObserver lazy loading detected
+IO endpoint: GET /v2/articles?offset=24 (batch size 8, total count signal: none)
+Card selector: .article-card (stable), root: main.stream (stable)
+Pagination: XHR GET /v2/articles?cursor=abc123 → JSON { items: [...], next_cursor: "...", has_more: true }
+Depth probe: pages 2-3 consistent (fast path), cursor pagination stable
+Deep web: search form (.search-box) triggers XHR to /v2/search?q=test → returns 15 items
+Crawl trap: none detected (cursor-based, not date-based)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-04-12T08:15:12.000Z  SYSTEM
+
+id:                   ent_016
+phase:                1
+source:               system
+event:                cookie_dependency_map
+description:          Cookie acquisition chain for target domain
+details:
+  steps:
+    - step: 1
+      action: "GET /"
+      sets_cookies: ["A1", "A1S", "GUCS", "A3"]
+    - step: 2
+      action: "GET /v2/articles"
+      requires_cookies: ["A1", "A1S"]
+      sets_cookies: []
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-04-12T08:15:20.000Z  BUDGET_STATUS
+
+id:                   ent_020
+phase:                2
+source:               system
+status:               content_discovery_complete
+cycles_used:          21
+cycles_remaining:     39
+cdp_requests_captured: 47
+cdp_domains_observed:  3
+api_endpoints_detected: 2
+js_bundles_captured:   6
+js_bundles_analyzed:   0
+pagination_endpoint_found: true
+auth_tokens_detected:  2
+websocket_connections: 0
+graphql_endpoints:     0
+content_items_inspected: 0 of 3 planned
+complexity_assessment: MEDIUM
+blockers_hit:          0
+remaining_unexplored:
+  - "bundle_js_analysis: 6 bundles captured but not analyzed"
+  - "token_lifecycle: A1S and A3 cookies origin not traced"
+  - "content_item_entry: 0 of 3 items inspected"
+reinvestigation_recommendations: []
+notes:                 First pass complete. Key APIs identified. No BLOCKERs hit.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-04-12T08:15:25.500Z  SYSTEM
+
+id:                   ent_021
+phase:                2
+source:               system
+event:                custom
+description:          "INVESTIGATION_FIRST_PASS_COMPLETE"
+details:              { "entries": 21, "cycles_baseline": 13, "cycles_content": 8, "remaining": 39 }
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

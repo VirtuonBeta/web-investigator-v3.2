@@ -9,6 +9,17 @@ This file provides the HOW for each investigation step. The WHY lives in SKILL.m
 - [ ] site_brief.md provided by operator
 - [ ] CDP browser available and functional
 
+## Write Targets
+
+| What | File | Why |
+|------|------|-----|
+| Raw observations (REQUEST, DOM_SNAPSHOT, COOKIE, LOCAL_STORAGE, EDGE_CASE_TEST, SERVICE_WORKER, UNKNOWN, operational SYSTEM) | `g1d0.log` | Gate-scoped raw data |
+| D2:State updates | `state.log` | State checkpoint |
+| D1: Baseline Phase Summary | `state.log` | Phase completion record |
+| BUDGET_STATUS (at P8) | `state.log` | Budget checkpoint |
+| COOKIE_DEPENDENCY_MAP (at P7) | `state.log` | Key synthesis artifact |
+| consent_flow_map (at P7c, EU only) | `state.log` | Key synthesis artifact |
+
 ## Quick Phase Map
 
 | Phase | Steps | Purpose |

@@ -107,7 +107,7 @@ budget:
 Re-investigation is handled via a separate file (`s2_gaps.md`), not by modifying this target file. The workflow is:
 
 1. After first investigation, Agent 2 may produce `s2_gaps.md` with specific targeted requests.
-2. Agent 1 reads `s2_gaps.md` as a separate input and executes the requests, appending results to `s1_log.md`.
+2. Agent 1 reads `s2_gaps.md` as a separate input and executes the requests, appending results to the current gate D0 file and state.log.
 3. Agent 2 re-reads the full log and produces an updated `s2_analysis.md`.
 
 This target file is never modified after the initial investigation begins.

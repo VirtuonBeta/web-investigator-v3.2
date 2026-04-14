@@ -1,8 +1,42 @@
 # Log Format Specification `v3.2`
 
-Reference file for the Web Investigator (Agent 1 v3.2). Defines the typed entry format for s1_log.md.
+Reference file for the Web Investigator (Agent 1 v3.2). Defines the typed entry format and file structure for the investigation output.
 
 Agent 1 writes these entries. Agent 2 reads them. Every entry must follow this spec exactly.
+
+---
+
+## File Structure
+
+The investigation output is a set of files, not a single monolithic log:
+
+```
+state.log          ← D2:State + D1 summaries + BUDGET_STATUS + key SYSTEM artifacts
+g1d0.log           ← Raw observations from Gate 1 (P0–P8a)
+g2d0.log           ← Raw observations from Gate 2 (P9–P13c)
+g3d0.log           ← Raw observations from Gate 3 (P14–P16b)
+g4d0.log           ← Raw observations from Gate 4 (P17–P22)
+g5d0.log           ← Raw observations from Gate 5 (P23–P27)
+g6d0.log           ← Raw observations from Gate 6 (P28–P32+)
+```
+
+### state.log — State & Summaries
+
+Append-only. Contains the D2/D1/BUDGET hierarchy and key synthesis SYSTEM entries. Never contains raw observation entries (REQUEST, DOM_SNAPSHOT, COOKIE, etc.).
+
+**Write targets for state.log:**
+- D2:State updates (at trigger points)
+- D1 phase summaries (at gate boundaries)
+- BUDGET_STATUS entries (at P8, P13, P16, and when budget exhausted)
+- COOKIE_DEPENDENCY_MAP (at P7)
+- HTTP_REQUEST_CHAIN (at P27)
+- consent_flow_map (at P7c, EU only)
+- INVESTIGATION_FIRST_PASS_COMPLETE (at P13c)
+- Site brief field verification (at P16b)
+
+### gNd0.log — Gate Raw Observations
+
+Append-only per gate. Contains all typed observation entries (REQUEST, DOM_SNAPSHOT, COOKIE, LOCAL_STORAGE, EDGE_CASE_TEST, SERVICE_WORKER, UNKNOWN, SESSION, and operational SYSTEM entries). A gate D0 file is naturally frozen when the gate completes — no explicit freeze step needed.
 
 ---
 
@@ -10,12 +44,13 @@ Agent 1 writes these entries. Agent 2 reads them. Every entry must follow this s
 
 1. Every entry is a typed block delimited by `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
 2. Every entry starts with a UTC ISO 8601 timestamp and a TYPE declaration
-3. Every entry has a unique `id` — format: `ent_NNN` (sequential) or `ent_auto_NNN` (CDP passive)
+3. Every entry has a unique `id` — format: `ent_NNN` (sequential) or `ent_auto_NNN` (CDP passive). IDs are global across all files — sequential numbering continues across state.log and gate D0 files.
 4. Every entry has a `phase` indicating which priority queue step produced it
 5. Source field: `source: cdp_passive | agent_active | system`
 6. No free-form prose in data fields. Notes and descriptions are fine. Conclusions are not.
-7. Append only. Never modify or delete entries.
+7. Append only. Never modify or delete entries in any file.
 8. Truncation must be marked: `[TRUNCATED at N chars of total M]`
+9. Raw observation entries go in the current gate's D0 file. State and synthesis entries go in state.log.
 
 ---
 
@@ -527,17 +562,17 @@ Phase 7: Re-investigation (only if reinvestigation requests exist)
 
 Priority queue step → Phase number:
 
-| Priority Queue Steps | Phase | Description | Reference File |
-|---|---|---|---|
-| Pre-Brief | 0 | Full site brief ingestion | gate-1 |
-| P1 | 0 | Pre-flight | gate-1 |
-| P2–P8 | 1 | Baseline | gate-1 |
-| P9–P13 | 2 | Content discovery | gate-2 |
-| P14–P16 | 3 | Content item inspection | gate-3 |
-| P17–P22 | 4 | Deep exploration | gate-4 |
-| P23–P27 | 5 | Request replay | gate-5 |
-| P28–P31 | 6 | Edge case battery | gate-6 |
-| P32+ | 7 | Re-investigation | gate-6 |
+| Priority Queue Steps | Phase | Description | Reference File | D0 File |
+|---|---|---|---|---|
+| Pre-Brief | 0 | Full site brief ingestion | gate-1 | state.log |
+| P1 | 0 | Pre-flight | gate-1 | g1d0.log |
+| P2–P8 | 1 | Baseline | gate-1 | g1d0.log |
+| P9–P13 | 2 | Content discovery | gate-2 | g2d0.log |
+| P14–P16 | 3 | Content item inspection | gate-3 | g3d0.log |
+| P17–P22 | 4 | Deep exploration | gate-4 | g4d0.log |
+| P23–P27 | 5 | Request replay | gate-5 | g5d0.log |
+| P28–P31 | 6 | Edge case battery | gate-6 | g6d0.log |
+| P32+ | 7 | Re-investigation | gate-6 | g6d0.log |
 
 ---
 

@@ -13,6 +13,14 @@ Before using this file, you should already have:
 
 If any prerequisite is missing, return to the appropriate gate file before proceeding.
 
+## Write Targets
+
+| What | File | Why |
+|------|------|-----|
+| Raw observations | `g4d0.log` | Gate-scoped raw data |
+| D2:State updates | `state.log` | State checkpoint |
+| D1: Deep Exploration Phase Summary | `state.log` | Phase completion record |
+
 ## Quick Phase Map
 
 | Phase | Steps | Purpose |

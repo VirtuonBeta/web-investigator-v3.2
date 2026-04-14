@@ -16,6 +16,16 @@ Before using this file, you should already have (from `references/gates/gate-1-b
 
 If any prerequisite is missing, return to the appropriate gate file before proceeding.
 
+## Write Targets
+
+| What | File | Why |
+|------|------|-----|
+| Raw observations | `g3d0.log` | Gate-scoped raw data |
+| D2:State updates | `state.log` | State checkpoint |
+| D1: Item Inspection Phase Summary | `state.log` | Phase completion record |
+| BUDGET_STATUS (at P16) | `state.log` | Budget checkpoint |
+| Site brief field verification (P16b) | `state.log` | Verification artifact |
+
 ## Quick Phase Map
 
 | Phase | Steps | Purpose |

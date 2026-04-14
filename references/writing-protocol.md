@@ -45,7 +45,7 @@ P8, P13, P16, P22, P27, P31 — STOP, write all pending observations, update D2:
 5. Does this entry add new information, or repeat what's already logged?
 
 ### Output Discipline
-- Log goes to s1_log.md ONLY. Never to chat, never to other files.
+- Log goes to gate D0 files and state.log ONLY. Never to chat, never to other files.
 - One entry per observation/action. Never bundle.
 - D0 = observations. D1 = phase summaries. D2 = living state.
 - Errata for corrections. Never edit existing entries.
@@ -60,10 +60,10 @@ Hard write gates exist at the end of these phases: **P8, P13, P16, P22, P27, P31
 At each gate you MUST:
 
 1. **Stop what you are doing.** Do not proceed to the next phase.
-2. **Write all pending observations** to `s1_log.md` as properly typed entries.
-3. **Update D2:State** with current phase, key findings, dead ends, and budget.
-4. **Write D1 Phase Summary** for the completed phase (see §9 — Mandatory D1 Phase Summaries).
-5. **Write BUDGET_STATUS** (at P8, P13, P16 gates — other gates only if budget changed significantly).
+2. **Write all pending observations** to the current gate's D0 file (`g{N}d0.log`) as properly typed entries.
+3. **Update D2:State** — append to `state.log` with current phase, key findings, dead ends, budget, `last_entry`, and `current_d0`.
+4. **Write D1 Phase Summary** — append to `state.log` for the completed phase (see §9 — Mandatory D1 Phase Summaries). Include `→ g{N}d0.log` suffix.
+5. **Write BUDGET_STATUS** — append to `state.log` (at P8, P13, P16 gates — other gates only if budget changed significantly).
 
 **Why hard gates exist:** Without forced write points, agents naturally defer writing ("I'll do it after this one more thing") until they batch-dump everything at the end. This destroys the incremental-write property and means:
 - If the run is interrupted, all unwritten observations are lost.
@@ -77,10 +77,10 @@ At each gate you MUST:
 At each gate, verify:
 
 ```
-☐ All D0 observations from this phase are logged as typed entries
-☐ D2:State is updated with current phase and findings
-☐ D1 Phase Summary is written for the completed phase (MANDATORY — see §9)
-☐ BUDGET_STATUS is written (P8, P13, P16)
+☐ All D0 observations from this phase are logged as typed entries in the gate D0 file
+☐ D2:State is appended to state.log with current phase and findings
+☐ D1 Phase Summary is appended to state.log for the completed phase (MANDATORY — see §9)
+☐ BUDGET_STATUS is appended to state.log (P8, P13, P16)
 ☐ Entry IDs are sequential and no IDs are skipped
 ☐ No entry contains banned phrases (see Quick Reference above)
 ☐ For each entry: all core fields present; conditional fields filled if first-of-type or 10-entry gap
@@ -96,13 +96,14 @@ The agent has two output channels:
 
 | Channel | Purpose | Content |
 |---------|---------|---------|
-| `s1_log.md` | Observation log | All observations, state checkpoints, phase transitions |
+| Gate D0 file (`g{N}d0.log`) | Observation log | All raw observations |
+| `state.log` | State & summaries | D2:State, D1 summaries, BUDGET_STATUS, key synthesis artifacts |
 | Chat | Operator coordination | Status updates, questions, BLOCKER reports, first-pass halt |
 
 ### Chat Rules
 
 Chat is for **coordination only**. The following are appropriate chat messages:
-- "First pass complete. 23 entries in s1_log.md. Budget remaining: 27 cycles."
+- "First pass complete. state.log + g1d0.log + g2d0.log written. Budget remaining: 27 cycles."
 - "BLOCKER: CAPTCHA detected on primary URL. Halting."
 - "At P17, found /api/v2/ endpoint. Continuing to P18."
 - Asking the operator a question when uncertain.
@@ -120,7 +121,7 @@ The following are **NOT** appropriate chat messages:
 Chat verbosity has three failure modes:
 1. **Context pollution** — chat observations get mixed with actual analysis, creating duplicate/conflicting records.
 2. **Log starvation** — if you write it in chat, you're less likely to write it in the log, so the log becomes incomplete.
-3. **Analyst confusion** — the analyst reads s1_log.md, not chat. If observations only exist in chat, they're invisible to downstream processing.
+3. **Analyst confusion** — the analyst reads state.log and gate D0 files, not chat. If observations only exist in chat, they're invisible to downstream processing.
 
 ---
 
@@ -135,7 +136,7 @@ Read ALL reference files once at investigation start (Phase 0). After that, re-r
 | Before writing an entry type you haven't written in the last 5 entries | `references/log-format.md` → section for that entry type | Ensure entry matches the spec |
 | Before writing an entry type for the FIRST time | `references/log-format.md` → section for that entry type | Full spec compliance on first use |
 | At each gate: "Any entry types I've written fewer than 3 times this investigation?" | Re-read those log-format.md sections now | Reinforce rare entry format |
-| When D2:State shows context_risk: MEDIUM/HIGH | `s1_log.md` (D2 + relevant D1) | Recover from context loss |
+| When D2:State shows context_risk: MEDIUM/HIGH | `state.log` (last D2:State + relevant D1) | Recover from context loss |
 | Before Phase 4 (deep exploration) | `references/gates/gate-4-exploration.md` | Deep exploration steps are conditional — re-read to know which apply |
 | When entering Phase 5 (request replay) | `references/log-format.md` → REQUEST type | Replay entries require complete req_headers/res_headers |
 | After investigation completes | `references/compaction.md` | Compaction procedure for final log |
@@ -359,8 +360,8 @@ This is MANDATORY, not optional. The D1 summary is the primary context recovery 
 
 Every 6 DECISION cycles (not entries — a decision cycle is any entry where the agent chose a non-obvious action: probing, testing, changing direction), the agent MUST:
 
-1. Re-read D2:State
-2. Re-read the most recent D1 phase summary
+1. Re-read the last D2:State entry in `state.log`
+2. Re-read the most recent D1 phase summary in `state.log`
 3. Verify: "Does my next planned action align with D2:State and site_brief?"
 
 This is a mechanical trigger. No self-assessment required. Do it at cycle 6, 12, 18, 24, 30, 36, 42, 48, 54, 60 regardless of how you "feel" about your context state.
