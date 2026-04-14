@@ -5,9 +5,9 @@ Example output from a first-pass investigation of a non-EU site. This file conta
 ---
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{CYCLE_AND_TYPE}  DOM_SNAPSHOT
+cycle: 14  DOM_SNAPSHOT
 
-id:                   {ID}
+id:                   g2:001
 phase:                2
 source:               agent_active
 context:              content_structure
@@ -22,9 +22,9 @@ notes:                "24 article cards visible on first load. Each card: headli
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{CYCLE_AND_TYPE}  EDGE_CASE_TEST
+cycle: 16  EDGE_CASE_TEST
 
-id:                   {ID}
+id:                   g2:002
 phase:                2
 source:               agent_active
 test_id:              INTERSECTION_OBSERVER_DETECTED
@@ -38,9 +38,9 @@ anomalies:            []
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{CYCLE_AND_TYPE}  REQUEST
+cycle: 17  REQUEST
 
-id:                   {ID}
+id:                   g2:003
 phase:                2
 source:               cdp_passive
 method:               GET
@@ -56,9 +56,9 @@ notes:                Cursor-based pagination API. Batch size: 8 items. has_more
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{CYCLE_AND_TYPE}  EDGE_CASE_TEST
+cycle: 19  EDGE_CASE_TEST
 
-id:                   {ID}
+id:                   g2:004
 phase:                2
 source:               agent_active
 test_id:              DEEP_WEB_ENDPOINT_FOUND
@@ -72,9 +72,9 @@ anomalies:            ["Search endpoint returns fewer items than articles endpoi
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{CYCLE_AND_TYPE}  EDGE_CASE_TEST
+cycle: 20  EDGE_CASE_TEST
 
-id:                   {ID}
+id:                   g2:005
 phase:                2
 source:               agent_active
 test_id:              PAGINATION_REPLAY

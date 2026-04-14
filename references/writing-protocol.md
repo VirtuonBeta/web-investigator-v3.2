@@ -62,12 +62,12 @@ At each gate you MUST:
 1. **Stop what you are doing.** Do not proceed to the next phase.
 2. **Write all pending observations** to the current gate's D0 file (`g{N}d0.log`) as properly typed entries.
 3. **Replace D2:State** at the top of `state.log` with current phase, key findings, dead ends, budget, and `current_d0`.
-4. **Write D1 Phase Summary** in `state.log` for the completed phase (see §9 — Mandatory D1 Phase Summaries). Include `ents:` index range (format — pending addition pass).
+4. **Write D1 Phase Summary** in `state.log` for the completed phase (see §9 — Mandatory D1 Phase Summaries). Include `ents:` index range (e.g., `ents: g1:001-g1:011`).
 5. **Write BUDGET_STATUS** — append to `state.log` (at P8, P13, P16 gates — other gates only if budget changed significantly).
 
 **Why hard gates exist:** Without forced write points, agents naturally defer writing ("I'll do it after this one more thing") until they batch-dump everything at the end. This destroys the incremental-write property and means:
 - If the run is interrupted, all unwritten observations are lost.
-- (Timing rule — pending addition pass)
+- Cycle numbers are not fabricated — they come from the budget counter, which is ground truth.
 - The analyst gets no intermediate data.
 
 **Skipping a gate violates the output contract.** There are no exceptions.
@@ -259,9 +259,9 @@ At phase gates, you may not have time to write full detailed entries for every o
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{CYCLE_AND_TYPE}  REQUEST
+cycle: 14  REQUEST
 
-id:                   {ID}
+id:                   g2:003
 phase:                1
 source:               cdp_passive
 method:               GET
@@ -274,9 +274,9 @@ Later, expand it:
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{CYCLE_AND_TYPE}  REQUEST
+cycle: 14  REQUEST
 
-id:                   {ID}
+id:                   g2:003
 phase:                1
 source:               cdp_passive
 method:               GET
@@ -320,7 +320,7 @@ After writing each observation entry, perform this self-check:
    since the last entry of this type?
    → If no: fill missing core fields. Fill conditional fields if required.
 
-4. {Time/ordering rule TBD — pending addition pass}
+4. Cycle number: is the `cycle: N` value correct (matches the current decision cycle count)? Is the `id` in `gN:NNN` format with the correct gate prefix?
 
 5. Is this an observation, not a conclusion?
    → If it contains causal language ("because", "therefore"), rewrite as raw facts.
@@ -341,12 +341,15 @@ This 7-point check takes seconds but catches the most common log quality failure
 At EVERY phase gate (P8, P13, P16, P22, P27, P31), BEFORE proceeding to the next phase, write a D1 section summarizing the completed phase. Format:
 
 ```
-## D1: {Phase Name} (P{start}-P{end})
+## D1: {Phase Name} (P{start}-P{end}) | ents: g{N}:{first}-g{N}:{last}
 
 {2-5 sentence summary of key findings, dead ends, and open questions from
-this phase. Include {ID references — format TBD} for the most
-important observations.}
+this phase. Include gN:NNN references for the most important observations.}
 ```
+
+The `ents:` range is the index — it tells the reader exactly which gate D0 file and which entry numbers contain the raw observations for this phase. Example: `ents: g1:001-g1:011` means "open `g1d0.log`, entries g1:001 through g1:011."
+
+**D1 ordering:** Summaries are written **bottom-up** (newest above oldest). When you write a new D1 at a gate, insert it ABOVE the previous D1. This means the most recently completed phase is always the first D1 you read after D2:State — which is the phase most likely to need context recovery.
 
 This is MANDATORY, not optional. The D1 summary is the primary context recovery artifact. It must be written while context about the phase is fresh — not retroactively.
 
@@ -385,7 +388,7 @@ Total cost: ~200 tokens every 6 cycles (D2 + D1 re-read).
 The log is APPEND-ONLY. Never modify an existing entry.
 
 Errata (the only mechanism for corrections) requires:
-- `corrects_entry`: the ID of the original entry (format — pending addition pass)
+- `corrects_entry`: the gate-qualified ID (`gN:NNN`) of the original entry
 - `field`: which field is being corrected
 - `original_value`: the exact text of the original
 - `corrected_value`: the corrected text

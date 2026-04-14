@@ -5,9 +5,9 @@ Example output from a first-pass investigation of a non-EU site. This file conta
 ---
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{CYCLE_AND_TYPE}  SYSTEM
+cycle: 1  SYSTEM
 
-id:                   {ID}
+id:                   g1:001
 phase:                0
 source:               system
 event:                custom
@@ -26,9 +26,9 @@ details:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{CYCLE_AND_TYPE}  SYSTEM
+cycle: 1  SYSTEM
 
-id:                   {ID}
+id:                   g1:002
 phase:                0
 source:               system
 event:                cdp_health_check
@@ -37,9 +37,9 @@ details:              {}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{CYCLE_AND_TYPE}  SYSTEM
+cycle: 1  SYSTEM
 
-id:                   {ID}
+id:                   g1:003
 phase:                0
 source:               system
 event:                navigated
@@ -48,9 +48,9 @@ details:              {}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{CYCLE_AND_TYPE}  DOM_SNAPSHOT
+cycle: 3  DOM_SNAPSHOT
 
-id:                   {ID}
+id:                   g1:004
 phase:                1
 source:               agent_active
 context:              initial_load
@@ -88,9 +88,9 @@ notes:                "Standard article card layout. Each card has headline, byl
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{CYCLE_AND_TYPE}  COOKIE
+cycle: 3  COOKIE
 
-id:                   {ID}
+id:                   g1:005
 phase:                1
 source:               cdp_passive
 name:                 A1
@@ -103,14 +103,14 @@ secure:               true
 sameSite:             None
 inferred_purpose:     session
 set_by:               page_load
-set_by_request:       {ID}
+set_by_request:       g1:003
 notes:                Primary session cookie; set on initial page load
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{CYCLE_AND_TYPE}  COOKIE
+cycle: 3  COOKIE
 
-id:                   {ID}
+id:                   g1:006
 phase:                1
 source:               cdp_passive
 name:                 A1S
@@ -123,6 +123,6 @@ secure:               true
 sameSite:             None
 inferred_purpose:     auth
 set_by:               page_load
-set_by_request:       {ID}
+set_by_request:       g1:003
 notes:                Auth-related cookie; session-scoped; set alongside A1
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

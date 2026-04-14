@@ -43,14 +43,83 @@ Append-only per gate. Contains all typed observation entries (REQUEST, DOM_SNAPS
 ## General Rules
 
 1. Every entry is a typed block delimited by `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
-2. Every entry starts with a cycle marker and a TYPE declaration (format TBD — pending addition pass)
-3. Every entry has a unique `id`. (Format TBD — pending addition pass.)
+2. Every entry starts with a cycle marker and TYPE declaration: `cycle: N  TYPE` where N is the current decision cycle count
+3. Every entry has a unique gate-qualified `id` in `gN:NNN` format (see ID Format below)
 4. Every entry has a `phase` indicating which priority queue step produced it
 5. Source field: `source: cdp_passive | agent_active | system`
 6. No free-form prose in data fields. Notes and descriptions are fine. Conclusions are not.
-7. Append only. Never modify or delete entries in any file.
+7. D0 files are append-only. state.log: D2:State is replaced at the top; all other entries are appended.
 8. Truncation must be marked: `[TRUNCATED at N chars of total M]`
 9. Raw observation entries go in the current gate's D0 file. State and synthesis entries go in state.log.
+
+---
+
+## ID Format — `gN:NNN`
+
+Every entry has a gate-qualified ID in the format `gN:NNN`:
+
+- **`g`** — literal prefix (stands for "gate")
+- **`N`** — gate number (1–6), matching the gate D0 file number
+- **`:`** — separator
+- **`NNN`** — zero-padded local entry number within that gate's D0 file (001, 002, ..., 999)
+
+Examples: `g1:001`, `g1:042`, `g3:007`, `g6:103`
+
+### Why Gate-Qualified
+
+The gate prefix makes every ID **self-locating** — the ID itself tells you which file contains the entry. `g2:014` means "open `g2d0.log`, find entry 014." No global index or lookup table needed. This eliminates the old `ent_NNN` scheme where the ID told you nothing about where to find the entry.
+
+### Local Counter Rules
+
+- Each gate D0 file has its own counter starting at 001.
+- Counter increments by 1 for each new entry in that file.
+- Counters are never reset or renumbered — even after compaction removes duplicates, gaps in numbering are acceptable.
+- state.log entries (D2, D1, BUDGET_STATUS, SYSTEM) use the gate number of the gate they belong to. D2:State and D1 summaries always use the current gate's prefix.
+
+### Cross-Reference Fields
+
+Fields that reference other entries use the same `gN:NNN` format:
+
+| Field | Entry Type | Example |
+|-------|-----------|---------|
+| `set_by_request` | COOKIE | `set_by_request: g1:003` |
+| `prerequisite_requests` | EDGE_CASE_TEST | `prerequisite_requests: ["g1:001", "g1:007"]` |
+| `related_entries` | UNKNOWN | `related_entries: ["g2:003", "g4:012"]` |
+| `corrects_entry` | SYSTEM (errata) | `corrects_entry: g1:005` |
+
+Because the gate prefix is part of the ID, cross-references between gate files are trivial: `prerequisite_requests: ["g1:003", "g1:007"]` immediately tells the reader "these prerequisites are in g1d0.log, entries 003 and 007."
+
+---
+
+## Cycle Numbers
+
+Every entry header contains the current decision cycle count: `cycle: N`
+
+### Format
+
+```
+cycle: 14  REQUEST
+```
+
+The cycle number is the agent's current decision cycle count at the time the entry is written. It is NOT a timestamp — it is a monotonically increasing integer that the agent always has access to (it's the budget counter).
+
+### Properties
+
+- **Monotonically increasing** — never goes backward
+- **Ground truth** — derived from the budget counter, not the system clock
+- **Multiple entries per cycle** — a single decision cycle may produce multiple observations (e.g., navigating to a URL produces both a SYSTEM `navigated` entry and a DOM_SNAPSHOT, both at `cycle: 5`)
+- **Not every cycle produces entries** — some cycles result in actions that don't need logging (e.g., scrolling to trigger lazy loading)
+
+### Why Not Timestamps
+
+ISO 8601 timestamps were removed because:
+1. The agent does not have reliable access to the current time
+2. Fabricated timestamps (backdated to when the observation occurred) create false precision
+3. Cycle numbers provide stronger ordering guarantees with zero fabrication risk
+
+### Ordering
+
+Within a single gate D0 file, entries are ordered by their position in the file (write order). The cycle number provides coarse ordering; within the same cycle, file position is the tiebreaker. Across gate files, the cycle number is the only ordering signal.
 
 ---
 
@@ -82,9 +151,9 @@ Captures every HTTP request/response observed or initiated.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{CYCLE_AND_TYPE}
+cycle: 14  REQUEST
 
-id:                   {ID}
+id:                   g2:003
 phase:                1
 source:               cdp_passive
 method:               GET
@@ -114,7 +183,7 @@ notes:                Paginated API endpoint; returns full article list
 
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
-| `id` | string | (Format TBD — pending addition pass.) |
+| `id` | string | Gate-qualified ID in `gN:NNN` format (see ID Format section) |
 | `phase` | integer | Phase number (see Phase Numbering Convention) |
 | `source` | enum | `cdp_passive` \| `agent_active` \| `system` |
 | `method` | string | HTTP method: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD |
@@ -144,9 +213,9 @@ Captures the state of the DOM at a specific point in the investigation.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{CYCLE_AND_TYPE}
+cycle: 5  DOM_SNAPSHOT
 
-id:                   {ID}
+id:                   g1:004
 phase:                1
 source:               agent_active
 context:              content_structure
@@ -169,7 +238,7 @@ notes:                Card layout uses hashed Tailwind classes; data-attribute s
 
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
-| `id` | string | (Format TBD — pending addition pass.) |
+| `id` | string | Gate-qualified ID in `gN:NNN` format (see ID Format section) |
 | `phase` | integer | Phase number |
 | `source` | enum | `cdp_passive` \| `agent_active` \| `system` |
 | `context` | enum | `initial_load` \| `post_pagination_N` \| `content_entry_N` \| `article_entry_N` \| `pagination_mechanism_identification` \| `content_structure` \| `page_chrome` \| `window_globals` \| `embedded_json_N` \| `raw_html_sample` \| `service_workers` \| `framework_fingerprint` \| `analytics_payload` \| `timestamp_comparison` \| `url_type_analysis` \| `duplicate_detection` \| `encoding_check` \| `compression_check` \| `fingerprinting` \| `head_analysis` \| `csp_analysis` \| `shadow_dom_content` \| `shadow_dom_closed` \| `spa_state_change` \| `a_b_compare` \| `hidden_content_revealed` \| `stability_matrix` \| `custom` |
@@ -193,9 +262,9 @@ Captures an individual cookie observed during the investigation.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{CYCLE_AND_TYPE}
+cycle: 3  COOKIE
 
-id:                   {ID}
+id:                   g1:005
 phase:                1
 source:               cdp_passive
 name:                 _ga
@@ -218,7 +287,7 @@ notes:                Google Analytics cookie; set on initial page load
 
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
-| `id` | string | (Format TBD — pending addition pass.) |
+| `id` | string | Gate-qualified ID in `gN:NNN` format (see ID Format section) |
 | `phase` | integer | Phase number |
 | `source` | enum | `cdp_passive` \| `agent_active` \| `system` |
 | `name` | string | Cookie name |
@@ -231,7 +300,7 @@ notes:                Google Analytics cookie; set on initial page load
 | `sameSite` | string | `Strict` \| `Lax` \| `None` \| `unknown` |
 | `inferred_purpose` | enum | `tracking` \| `session` \| `crumb` \| `consent` \| `auth` \| `analytics` \| `unknown` |
 | `set_by` | enum | `page_load` \| `consent_flow` \| `auth_flow` \| `api_response` \| `javascript` \| `unknown` |
-| `set_by_request` | string \| null | ID of the REQUEST entry that set this cookie. Creates a linkable chain for cookie origin tracking. `null` if source is JS-only or unknown. |
+| `set_by_request` | string \| null | Gate-qualified ID (`gN:NNN`) of the REQUEST entry that set this cookie. Creates a linkable chain for cookie origin tracking. `null` if source is JS-only or unknown. |
 | `notes` | string | Factual observations |
 
 ---
@@ -242,9 +311,9 @@ Captures localStorage state at a point in the investigation.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{CYCLE_AND_TYPE}
+cycle: 6  LOCAL_STORAGE
 
-id:                   {ID}
+id:                   g1:008
 phase:                1
 source:               agent_active
 keys:                 ["auth_token", "user_prefs", "consent_settings", "session_id", "cache_v2"]
@@ -270,7 +339,7 @@ notes:                auth_token appears to be a JWT; consent_settings controls 
 
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
-| `id` | string | (Format TBD — pending addition pass.) |
+| `id` | string | Gate-qualified ID in `gN:NNN` format (see ID Format section) |
 | `phase` | integer | Phase number |
 | `source` | enum | `cdp_passive` \| `agent_active` \| `system` |
 | `keys` | array | All localStorage key names |
@@ -290,9 +359,9 @@ Records the execution and result of an edge case test from the battery.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{CYCLE_AND_TYPE}
+cycle: 42  EDGE_CASE_TEST
 
-id:                   {ID}
+id:                   g6:003
 phase:                6
 source:               agent_active
 test_id:              RATE_LIMIT_DETECTED
@@ -312,7 +381,7 @@ anomalies:            ["Rate limit returns JSON error body instead of HTML"]
 
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
-| `id` | string | (Format TBD — pending addition pass.) |
+| `id` | string | Gate-qualified ID in `gN:NNN` format (see ID Format section) |
 | `phase` | integer | Phase number |
 | `source` | enum | `cdp_passive` \| `agent_active` \| `system` |
 | `test_id` | enum | `ECT_001` \| `ECT_002` \| `RATE_LIMIT_DETECTED` \| `CONSENT_BANNER` \| `CONSENT_REDIRECT` \| `PAYWALL_DETECTED` \| `UA_TEST` \| `COOKIE_TEST` \| `PAGINATION_REPLAY` \| `CAPTCHA_DETECTED` \| `BLOCKER` \| `I18N_TEST` \| `TOKEN_ROTATION_TEST` \| `WARM_UP_COMPARE` \| `SPA_ROUTE_TEST` \| `CROSS_ORIGIN_IFRAME_TEST` \| `RSC_DETECTED` \| `THIRD_PARTY_CMS_API` \| `CMS_API_AUTH_DETECTED` \| `UA_TEST_SKIPPED_ROBOTS_TXT` \| `WAF_CHALLENGE_DETECTED` \| `SHADOW_DOM_DETECTED` \| `INTERSECTION_OBSERVER_DETECTED` \| `NON_HTTP_REPLAY_FAILURE` \| `HIDDEN_CONTENT_REVEALED` \| `SSR_API_SOURCE_OVERLAP` \| `SITEMAP_HIDDEN_STRUCTURE` \| `DEEP_WEB_ENDPOINT_FOUND` \| `SEARCH_FORM_NAVIGATION` \| `CRAWL_TRAP_DETECTED` \| `CUSTOM` |
@@ -323,7 +392,7 @@ anomalies:            ["Rate limit returns JSON error body instead of HTML"]
 | `result` | string | What happened — factual, no conclusions |
 | `diff_from_normal` | string \| null | How this differs from baseline behavior |
 | `anomalies` | array | See Anomaly Field Convention. Empty `[]` if none. |
-| `prerequisite_requests` | array \| null | Entry IDs of requests that must complete before this one. `null` if no dependencies. |
+| `prerequisite_requests` | array \| null | Gate-qualified IDs (`gN:NNN`) of requests that must complete before this one. `null` if no dependencies. |
 | `cookies_required` | array \| null | Cookie names required for this request to succeed. `null` if not tested. |
 | `headers_required` | array \| null | Header names required for this request to succeed (e.g., `Authorization`, `Referer`). `null` if not tested. |
 | `fingerprint_type` | enum \| null | `header` \| `tls` \| `none` \| `null`. Only for test_id `NON_HTTP_REPLAY_FAILURE`. Distinguishes header-based fingerprinting (solvable with correct headers) from TLS-based (requires TLS impersonation). `null` if not applicable. |
@@ -337,9 +406,9 @@ Infrastructure-level events and agent lifecycle milestones.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{CYCLE_AND_TYPE}
+cycle: 1  SYSTEM
 
-id:                   {ID}
+id:                   g1:003
 phase:                0
 source:               system
 event:                navigated
@@ -354,7 +423,7 @@ details:              { "url": "https://example.com", "loadTime_ms": 1432 }
 
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
-| `id` | string | (Format TBD — pending addition pass.) |
+| `id` | string | Gate-qualified ID in `gN:NNN` format (see ID Format section) |
 | `phase` | integer | Phase number |
 | `source` | enum | `cdp_passive` \| `agent_active` \| `system` |
 | `event` | enum | `navigated` \| `consent_handled` \| `budget_status` \| `blocker_detected` \| `investigation_complete` \| `auto_exclude` \| `phase_complete` \| `custom` \| `retry_transient` \| `permanent_error` \| `degraded` \| `robots_txt_disallow` \| `cdp_filter_switch` \| `cdp_capture_limit_reached` \| `cdp_health_check` \| `cdp_dom_enabled` \| `cdp_dom_disabled` \| `geo_requirement_unmet` \| `unexpected_domain_redirect` \| `browser_recovery` \| `empty_content_state` \| `max_pages_reached` \| `ua_blocked_by_robots_txt` \| `probe_skipped_robots_txt` \| `sitemap_classification` \| `search_form_inventory` \| `search_form_skipped_stateful` \| `crawl_trap_boundary` \| `crawl_trap_suspected` \| `errata` \| `cookie_dependency_map` \| `consent_flow_map` \| `http_request_chain` \| `custom` |
@@ -369,9 +438,9 @@ Periodic checkpoint of overall session state.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{CYCLE_AND_TYPE}
+cycle: 17  SESSION
 
-id:                   {ID}
+id:                   g2:010
 phase:                2
 source:               system
 current_url:          https://example.com/news?page=3
@@ -391,7 +460,7 @@ notes:                Auth confirmed via session cookie; no token rotation obser
 
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
-| `id` | string | (Format TBD — pending addition pass.) |
+| `id` | string | Gate-qualified ID in `gN:NNN` format (see ID Format section) |
 | `phase` | integer | Phase number |
 | `source` | enum | `cdp_passive` \| `agent_active` \| `system` |
 | `current_url` | string | URL the browser is currently on |
@@ -411,9 +480,9 @@ Tracks investigation budget consumption and discovery progress.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{CYCLE_AND_TYPE}
+cycle: 14  BUDGET_STATUS
 
-id:                   {ID}
+id:                   g2:011
 phase:                4
 source:               system
 status:               content_discovery_complete
@@ -443,7 +512,7 @@ notes:                 Pagination found; API surface is moderate
 
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
-| `id` | string | (Format TBD — pending addition pass.) |
+| `id` | string | Gate-qualified ID in `gN:NNN` format (see ID Format section) |
 | `phase` | integer | Phase number |
 | `source` | enum | `cdp_passive` \| `agent_active` \| `system` |
 | `status` | enum | `baseline_complete` \| `content_discovery_complete` \| `item_inspection_complete` \| `deep_exploration_complete` \| `budget_exhausted` \| `investigation_complete` |
@@ -473,16 +542,16 @@ Catches observations that don't fit any other type. Use sparingly — prefer a t
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{CYCLE_AND_TYPE}
+cycle: 25  UNKNOWN
 
-id:                   {ID}
+id:                   g4:007
 phase:                4
 source:               cdp_passive
 description:          Received a binary WebSocket frame with non-UTF8 content
 raw_evidence:         "[154 bytes of binary data, first 4 bytes: 0x89 0x50 0x4E 0x47]"
 hypothesis:           May be a PNG image streamed over WebSocket
 resolution_test:      Capture next frame with base64 encoding for MIME detection
-related_entries:      ["{ID}", "{ID}"]
+related_entries:      ["g2:003", "g4:012"]
 confidence_in_hypothesis: LOW
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
@@ -493,14 +562,14 @@ confidence_in_hypothesis: LOW
 
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
-| `id` | string | (Format TBD — pending addition pass.) |
+| `id` | string | Gate-qualified ID in `gN:NNN` format (see ID Format section) |
 | `phase` | integer | Phase number |
 | `source` | enum | `cdp_passive` \| `agent_active` \| `system` |
 | `description` | string | What was observed |
 | `raw_evidence` | string | Raw data or representation of the observation |
 | `hypothesis` | string \| null | Best guess at explanation (clearly labeled as hypothesis) |
 | `resolution_test` | string \| null | Suggested test to confirm or reject the hypothesis |
-| `related_entries` | array | IDs of entries that may be related |
+| `related_entries` | array | Gate-qualified IDs (`gN:NNN`) of entries that may be related |
 | `confidence_in_hypothesis` | enum | `LOW` \| `MEDIUM` \| `HIGH` |
 
 ---
@@ -511,9 +580,9 @@ Captures a service worker observed during the investigation.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{CYCLE_AND_TYPE}
+cycle: 4  SERVICE_WORKER
 
-id:                   {ID}
+id:                   g1:007
 phase:                1
 source:               cdp_passive
 scope:                https://example.com/
@@ -532,7 +601,7 @@ notes:                Uses Workbox; precache manifest includes 14 assets
 
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
-| `id` | string | (Format TBD — pending addition pass.) |
+| `id` | string | Gate-qualified ID in `gN:NNN` format (see ID Format section) |
 | `phase` | integer | Phase number |
 | `source` | enum | `cdp_passive` \| `agent_active` \| `system` |
 | `scope` | string | Service worker scope URL |
@@ -666,15 +735,15 @@ Entries are append-only — you never modify or delete a previous entry. If you 
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{CYCLE_AND_TYPE}
+cycle: 28  SYSTEM
 
-id:                   {ID}
+id:                   g4:015
 phase:                4
 source:               system
 event:                errata
-description:          Correction to {ORIGINAL_ID}
+description:          Correction to g1:005
 details:
-  corrects_entry:     {ORIGINAL_ID}
+  corrects_entry:     g1:005
   field:              inferred_purpose
   original_value:     tracking
   corrected_value:    session
@@ -685,7 +754,7 @@ details:
 ### Errata Rules
 
 1. **One correction per errata entry.** If multiple fields are wrong, write multiple errata entries.
-2. **Always reference the original entry ID** in `corrects_entry`.
+2. **Always reference the original entry ID** in `corrects_entry` (using `gN:NNN` format).
 3. **Always state the reason.** The reason must be a raw observation, not analysis. (e.g., "Cookie rotates on each request" is valid; "Cookie is clearly a session cookie" is analysis.)
 4. **Errata must cite a raw observation.** The `reason` field must include a specific raw observation that supports the correction, not a feeling or intuition. If you cannot articulate WHY the original was wrong using a specific raw observation, do NOT write errata — add a new observation entry instead.
 5. **Errata are applied during compaction.** During the investigation, the original entry remains unchanged. See `references/compaction.md`.

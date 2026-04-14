@@ -417,7 +417,7 @@ For each cookie, record which HTTP response or JS execution set it. This is esse
 2. After navigation, use `CDP.Network.getCookies()` to find JS-only cookies (no corresponding `Set-Cookie` header). Note as `set_by: javascript`.
 
 **Log each cookie with additional field:**
-- `set_by_request`: The entry ID of the REQUEST that set this cookie (e.g., `{ID}`). Creates a linkable chain: "Cookie A was set by the request in {ID}, which was the initial page load."
+- `set_by_request`: The gate-qualified ID of the REQUEST that set this cookie (e.g., `g1:003`). Creates a linkable chain: "Cookie A was set by the request in g1:003, which was the initial page load."
 
 **Cookie dependency chain notation:**
 

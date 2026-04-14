@@ -80,7 +80,7 @@ At the top of state.log, add a manifest:
 ```
 ## Compaction Manifest
 Source: s1_log_full/ directory
-Compacted: (compaction timestamp — pending addition pass)
+Compacted: cycle {N} (final investigation cycle)
 Gate files: g1d0.log through g6d0.log
 Removed: 15 duplicates, 7 infrastructural, 3 stubs
 Errata applied: 2 corrections
@@ -90,9 +90,9 @@ Trim rules: §Step 4
 
 ### Step 7: Validate
 
-1. Verify that all entry IDs still exist in their respective gate files. Gaps in local numbering are acceptable — do NOT renumber IDs. Renumbering risks breaking cross-reference chains.
+1. Verify that all entry IDs (`gN:NNN`) still exist in their respective gate files. Gaps in local numbering are acceptable — do NOT renumber IDs. Renumbering risks breaking `gN:NNN` cross-reference chains (e.g., `set_by_request: g1:003`, `corrects_entry: g1:005`).
 2. Verify the final D2:State in state.log is valid and current.
-3. Verify all D1 summaries reference the correct gate D0 files.
+3. Verify all D1 summaries have correct `ents:` ranges that match the surviving entries in their gate D0 files.
 4. Verify no required fields are missing from any entry in any file.
 
 ---

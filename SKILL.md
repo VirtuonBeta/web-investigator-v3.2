@@ -58,7 +58,7 @@ output/
 
 | What You're Writing | Which File | Why |
 |---------------------|-----------|-----|
-| D2:State update | `state.log` | (Write method TBD — pending addition pass) |
+| D2:State replacement | `state.log` | Replace — single entry at top, overwritten at each trigger point |
 | D1 phase summary | `state.log` | Append — gate completion record |
 | BUDGET_STATUS entry | `state.log` | Append — budget checkpoint |
 | COOKIE_DEPENDENCY_MAP | `state.log` | Append — key synthesis artifact |
@@ -105,6 +105,8 @@ The worklog is split across `state.log` (state + summaries) and gate D0 files (r
 
 D2 is the first thing you read when recovering context. It tells you exactly where you are. Written to `state.log`.
 
+**D2:State is a single entry at the TOP of state.log.** At every trigger point (gate boundary, context pressure, blocker, discovery, operator spot-check), the agent REPLACES the current D2:State with an updated one. There is never more than one D2:State in state.log — it is always the most recent checkpoint.
+
 ```
 ## D2: State
 Phase: P17 | Key: SSR, /v2/articles, cursor pagination, no auth
@@ -124,17 +126,21 @@ Last checkpoint: P16
 
 ### D1: Phase — Per-Phase Summary
 
-Written to `state.log` when a priority phase completes. Each D1 references its gate D0 file.
+Written to `state.log` when a priority phase completes. D1 summaries are ordered **bottom-up** (newest above oldest) — the most recently completed phase appears first, making it the first D1 you read after D2:State.
+
+Each D1 includes an `ents:` range that chains back to the gate D0 file. This is the index: `ents: g1:001-g1:011` means "entries g1:001 through g1:011 in g1d0.log."
 
 ```
-## D1: Baseline (P0-P8a) | ents: {TBD}
-CDP ✓, SSR, Next.js Pages, cookies 7 (3 auth)
-Sitemap: 42 URLs, 5 pattern clusters, deep web: /search?q=
-
-## D1: Content (P9-P13c) | ents: {TBD}
+## D1: Content (P9-P13c) | ents: g2:001-g2:008
 24 items visible, IO lazy loading, .article-card ✓
 Pagination: XHR /v2/articles, cursor-based, no auth
+
+## D1: Baseline (P0-P8a) | ents: g1:001-g1:011
+CDP ✓, SSR, Next.js Pages, cookies 7 (3 auth)
+Sitemap: 42 URLs, 5 pattern clusters, deep web: /search?q=
 ```
+
+**Three-hop chain:** D2:State (current position) → D1 summary (what each phase found + `ents:` index) → gNd0.log (raw observations). The `ents:` range makes every D1 a true index entry — to drill into a specific phase, follow the `ents:` range to the exact gate file and entry numbers.
 
 ### D0: Raw Observations — Per-Gate Files
 
@@ -149,17 +155,21 @@ Each gate's raw observations go into a dedicated file (`g1d0.log` through `g6d0.
 §  section reference
 ```
 
+### Entry ID Format
+
+Every entry uses a gate-qualified ID: `gN:NNN` (e.g., `g1:001`, `g2:014`, `g6:103`). The gate prefix is self-locating — `g2:014` means "open `g2d0.log`, find entry 014." See `references/log-format.md` → ID Format for full rules.
+
 ### When to Write (Trigger-Based)
 
 Write to the log at these trigger points — not every step, but at meaningful boundaries:
 
 | Trigger | What to Write | Write To |
 |---------|---------------|----------|
-| Phase boundary (P8, P13, P16, P22, P27, P31) | D2:State update + D1 if phase complete | state.log |
-| Context pressure (feeling uncertain about prior state) | D2:State update | state.log |
+| Phase boundary (P8, P13, P16, P22, P27, P31) | D2:State replacement + D1 if phase complete | state.log |
+| Context pressure (feeling uncertain about prior state) | D2:State replacement | state.log |
 | BLOCKER or unexpected discovery | D0 entry immediately | current gate D0 |
 | Budget checkpoint (P8, P13, P16) | BUDGET_STATUS entry | state.log |
-| Operator spot-check ("show me your D2:State") | D2:State update | state.log |
+| Operator spot-check ("show me your D2:State") | D2:State replacement | state.log |
 | Investigation complete | Final D2:State + BUDGET_STATUS | state.log |
 | Any observation, probe, or test result | Typed entry | current gate D0 |
 
@@ -172,7 +182,7 @@ When resuming after context loss, read in this EXACT order:
 1. **state.log** — Where am I? D2:State tells you your phase, budget, and `current_d0`. All D1 summaries are here too.
 2. **site_brief.md** — What am I looking for? The operator's requirements. (Trust the most recent D2:State over site_brief if they disagree on framework/technology identification.)
 3. **Current gate D0 file** — What did I just observe? Read the file named in `current_d0` from D2:State.
-4. **Older gate D0 files** — Only if needed. The D1 summary's `ents:` range tells you which gate file and entry range to read (format — pending addition pass).
+4. **Older gate D0 files** — Only if needed. The D1 summary's `ents:` range (e.g., `ents: g1:001-g1:011`) tells you exactly which gate file and which entry numbers to read.
 
 Total recovery cost: ~200-400 tokens for steps 1-2. Step 3 adds ~100-300 tokens. Step 4 on demand only.
 
