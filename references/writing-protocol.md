@@ -9,7 +9,7 @@ Read this file BEFORE starting the investigation AND at each phase gate.
 ## Quick Reference (read at phase gates; full document available for deep reference)
 
 ### Gate Triggers
-P8, P13, P16, P22, P27, P31 — STOP, write all pending observations, update D2:State, write D1 phase summary, write BUDGET_STATUS (at P8, P13, P16).
+P8, P13, P16, P22, P27, P31 — STOP, write all pending observations, update D2:State, write D1 phase summary, write BUDGET_STATUS to current gate D0 (at P8, P13, P16).
 
 ### Banned Phrases
 | Banned | Use Instead |
@@ -49,7 +49,7 @@ P8, P13, P16, P22, P27, P31 — STOP, write all pending observations, update D2:
 - One entry per observation/action. Never bundle.
 - D0 = observations. D1 = phase summaries. D2 = living state.
 - Errata for corrections. Never edit existing entries.
-- If any BUDGET_STATUS field contradicts D2:State, D2 takes precedence. Flag the contradiction in the notes field and update the field to match D2.
+- If any BUDGET_STATUS field contradicts D2:State, D2 takes precedence. Flag the contradiction in the BUDGET_STATUS notes field and update the field to match D2.
 
 ---
 
@@ -63,7 +63,7 @@ At each gate you MUST:
 2. **Write all pending observations** to the current gate's D0 file (`g{N}d0.log`) as properly typed entries.
 3. **Replace D2:State** at the top of `state.log` with current phase, key findings, dead ends, budget, and `current_d0`.
 4. **Write D1 Phase Summary** in `state.log` for the completed phase (see §9 — Mandatory D1 Phase Summaries). Include `ents:` index range (e.g., `ents: g1:001-g1:011`).
-5. **Write BUDGET_STATUS** — append to `state.log` (at P8, P13, P16 gates — other gates only if budget changed significantly).
+5. **Write BUDGET_STATUS** — append to current gate D0 file (at P8, P13, P16 gates — other gates only if budget changed significantly). The BUDGET_STATUS entry is included in the D1 summary's `ents:` range.
 
 **Why hard gates exist:** Without forced write points, agents naturally defer writing ("I'll do it after this one more thing") until they batch-dump everything at the end. This destroys the incremental-write property and means:
 - If the run is interrupted, all unwritten observations are lost.
@@ -79,8 +79,8 @@ At each gate, verify:
 ```
 ☐ All D0 observations from this phase are logged as typed entries in the gate D0 file
 ☐ D2:State is replaced at the top of state.log with current phase and findings
-☐ D1 Phase Summary is appended to state.log for the completed phase (MANDATORY — see §9)
-☐ BUDGET_STATUS is appended to state.log (P8, P13, P16)
+☐ D1 Phase Summary is inserted in state.log above previous D1 for the completed phase (MANDATORY — see §9)
+☐ BUDGET_STATUS is appended to current gate D0 file (P8, P13, P16)
 ☐ No entry contains banned phrases (see Quick Reference above)
 ☐ For each entry: all core fields present; conditional fields filled if first-of-type or 10-entry gap
 ☐ Re-read the next gate file (see SKILL.md → Reference Files for the phase-to-file map)
@@ -96,7 +96,7 @@ The agent has two output channels:
 | Channel | Purpose | Content |
 |---------|---------|---------|
 | Gate D0 file (`g{N}d0.log`) | Observation log | All raw observations |
-| `state.log` | State & summaries | D2:State, D1 summaries, BUDGET_STATUS, key synthesis artifacts |
+| `state.log` | State & summaries | D2:State, D1 summaries only — no typed entries |
 | Chat | Operator coordination | Status updates, questions, BLOCKER reports, first-pass halt |
 
 ### Chat Rules

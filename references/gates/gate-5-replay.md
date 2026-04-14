@@ -17,10 +17,9 @@ If any prerequisite is missing, return to the appropriate gate file before proce
 
 | What | File | Why |
 |------|------|-----|
-| Raw observations | `g5d0.log` | Gate-scoped raw data |
+| Raw observations (all typed entries including HTTP_REQUEST_CHAIN, etc.) | `g5d0.log` | Gate-scoped D0 — all typed entries go here |
 | D2:State updates | `state.log` | State checkpoint |
 | D1: Request Replay Phase Summary | `state.log` | Phase completion record |
-| HTTP_REQUEST_CHAIN (at P27) | `state.log` | Key synthesis artifact |
 
 ## Quick Phase Map
 

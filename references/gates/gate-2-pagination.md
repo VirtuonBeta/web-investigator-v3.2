@@ -18,11 +18,9 @@ If any prerequisite is missing, return to `references/gates/gate-1-baseline.md` 
 
 | What | File | Why |
 |------|------|-----|
-| Raw observations | `g2d0.log` | Gate-scoped raw data |
+| Raw observations (all typed entries including BUDGET_STATUS, INVESTIGATION_FIRST_PASS_COMPLETE, etc.) | `g2d0.log` | Gate-scoped D0 — all typed entries go here |
 | D2:State updates | `state.log` | State checkpoint |
 | D1: Content Discovery Phase Summary | `state.log` | Phase completion record |
-| BUDGET_STATUS (at P13) | `state.log` | Budget checkpoint |
-| INVESTIGATION_FIRST_PASS_COMPLETE | `state.log` | Lifecycle milestone |
 
 ## Quick Phase Map
 
@@ -345,7 +343,7 @@ Before halting and presenting to operator, verify:
 ☐ Search form probe completed (P13c)
 ☐ D2:State updated
 ☐ D1: Content Discovery Phase Summary written
-☐ BUDGET_STATUS written
-☐ INVESTIGATION_FIRST_PASS_COMPLETE SYSTEM entry written
+☐ BUDGET_STATUS written (to g2d0.log)
+☐ INVESTIGATION_FIRST_PASS_COMPLETE SYSTEM entry written (to g2d0.log)
 ☐ Awaiting operator instruction to continue
 ☐ When resuming: read `references/gates/gate-3-inspection.md`

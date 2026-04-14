@@ -35,7 +35,7 @@ Internal reasoning language: 中文 (Mandarin Chinese). All chain-of-thought, pl
 
 ```
 output/
-├── state.log          ← D2:State + D1 summaries + BUDGET_STATUS + key SYSTEM artifacts
+├── state.log          ← D2:State (replaced at top) + D1 summaries (bottom-up)
 ├── g1d0.log           ← Raw observations from Gate 1 (P0–P8a)
 ├── g2d0.log           ← Raw observations from Gate 2 (P9–P13c)
 ├── g3d0.log           ← Raw observations from Gate 3 (P14–P16b)
@@ -59,16 +59,10 @@ output/
 | What You're Writing | Which File | Why |
 |---------------------|-----------|-----|
 | D2:State replacement | `state.log` | Replace — single entry at top, overwritten at each trigger point |
-| D1 phase summary | `state.log` | Append — gate completion record |
-| BUDGET_STATUS entry | `state.log` | Append — budget checkpoint |
-| COOKIE_DEPENDENCY_MAP | `state.log` | Append — key synthesis artifact |
-| HTTP_REQUEST_CHAIN | `state.log` | Append — key synthesis artifact |
-| consent_flow_map | `state.log` | Append — key synthesis artifact |
-| INVESTIGATION_FIRST_PASS_COMPLETE | `state.log` | Append — lifecycle milestone |
-| Site brief verification (P16b) | `state.log` | Append — verification artifact |
-| All other entries (REQUEST, DOM_SNAPSHOT, COOKIE, EDGE_CASE_TEST, etc.) | Current gate D0 file | Append — raw observations |
+| D1 phase summary | `state.log` | Insert above previous D1 — bottom-up ordering |
+| All typed entries (REQUEST, DOM_SNAPSHOT, COOKIE, BUDGET_STATUS, SYSTEM, EDGE_CASE_TEST, COOKIE_DEPENDENCY_MAP, HTTP_REQUEST_CHAIN, consent_flow_map, INVESTIGATION_FIRST_PASS_COMPLETE, site brief verification, etc.) | Current gate D0 file | Append — raw observations and synthesis artifacts |
 
-Gate D0 files are append-only and never modified after the gate completes. state.log: D2:State is replaced at the top; D1, BUDGET_STATUS, and SYSTEM entries are appended below.
+Gate D0 files are append-only and never modified after the gate completes. state.log contains ONLY D2:State (replaced at top) and D1 summaries (inserted bottom-up). No typed entries belong in state.log — they all go in the current gate D0 file.
 
 ### File Naming
 
@@ -168,9 +162,9 @@ Write to the log at these trigger points — not every step, but at meaningful b
 | Phase boundary (P8, P13, P16, P22, P27, P31) | D2:State replacement + D1 if phase complete | state.log |
 | Context pressure (feeling uncertain about prior state) | D2:State replacement | state.log |
 | BLOCKER or unexpected discovery | D0 entry immediately | current gate D0 |
-| Budget checkpoint (P8, P13, P16) | BUDGET_STATUS entry | state.log |
+| Budget checkpoint (P8, P13, P16) | BUDGET_STATUS entry | current gate D0 |
 | Operator spot-check ("show me your D2:State") | D2:State replacement | state.log |
-| Investigation complete | Final D2:State + BUDGET_STATUS | state.log |
+| Investigation complete | Final D2:State replacement | state.log |
 | Any observation, probe, or test result | Typed entry | current gate D0 |
 
 **Do NOT write after every single step.** That causes batch-write drift — you'll be tempted to defer writing and then dump everything at once. Write at triggers, and you'll naturally maintain a living document.
@@ -247,7 +241,7 @@ Key outputs: content item types and selectors identified, pagination mechanism c
 
 **Purpose:** Determine what a scraper needs to send to get content — which headers, cookies, and tokens are required.
 
-**HTTP Request Chain output (at P27):** After Phase 5 completes, state.log MUST contain a SYSTEM entry `HTTP_REQUEST_CHAIN` that documents the sequenced dependency map of all discovered requests. This chain is the recipe for building a scraper — it tells the analyser exactly what to send, in what order, with what headers and cookies. Combined with the `COOKIE_DEPENDENCY_MAP` from P7, the analyser has complete knowledge of the request acquisition sequence.
+**HTTP Request Chain output (at P27):** After Phase 5 completes, the current gate D0 file MUST contain a SYSTEM entry `HTTP_REQUEST_CHAIN` that documents the sequenced dependency map of all discovered requests. This chain is the recipe for building a scraper — it tells the analyser exactly what to send, in what order, with what headers and cookies. Combined with the `COOKIE_DEPENDENCY_MAP` from P7, the analyser has complete knowledge of the request acquisition sequence. The Gate 5 D1 summary's `ents:` range includes this entry.
 
 ### Phase 6: Edge Case Battery (~5 cycles)
 
@@ -309,7 +303,7 @@ Start at 1 second between requests. After each response, adjust based on latency
 - Infinite redirect loop (>20 hops)
 - Budget exhausted
 
-When a BLOCKER is hit: log SYSTEM entry to current gate D0 + BUDGET_STATUS to state.log, halt. The log is still valuable — Agent 2 works with whatever was captured.
+When a BLOCKER is hit: log SYSTEM entry + BUDGET_STATUS to current gate D0, halt. Replace D2:State in state.log. The log is still valuable — Agent 2 works with whatever was captured.
 
 ### Soft Failures (log and continue)
 
@@ -327,7 +321,7 @@ Budget is measured in **decision cycles** — one cycle = one LLM reasoning turn
 - Re-investigation: 5 cycles per request item
 - Page limit: 15 pages default (adjustable)
 
-Log BUDGET_STATUS entries to `state.log` at P8, P13, P16, and when budget is exhausted.
+Log BUDGET_STATUS entries to the current gate D0 file at P8, P13, P16, and when budget is exhausted. The D1 summary's `ents:` range includes these entries, making them discoverable from state.log.
 
 ---
 
@@ -354,8 +348,8 @@ After completing **mandatory baseline (P1–P8)** and **content discovery (P9–
 
 ```
 FIRST-PASS HALT (after P13 completes):
-  1. Write final BUDGET_STATUS to state.log
-  2. Write SYSTEM entry to state.log: "INVESTIGATION_FIRST_PASS_COMPLETE"
+  1. Write final BUDGET_STATUS to current gate D0 file (g2d0.log)
+  2. Write SYSTEM entry to current gate D0 file: "INVESTIGATION_FIRST_PASS_COMPLETE"
   3. Output to operator:
      "First pass complete. state.log + g1d0.log + g2d0.log written.
       Baseline: {M} cycles. Content discovery: {K} cycles.
@@ -386,8 +380,7 @@ FIRST-PASS HALT (after P13 completes):
 - Batch-write the entire log at the end
 - Name output files anything other than `state.log` and `g{N}d0.log`
 - Use chat as the observation channel — see `references/writing-protocol.md` → Output Channel Discipline
-- Write raw observations to state.log — observations go in the current gate D0 file
-- Write BUDGET_STATUS or key synthesis SYSTEM entries to gate D0 files — they go in state.log
+- Write any typed entry (BUDGET_STATUS, SYSTEM, COOKIE_DEPENDENCY_MAP, etc.) to state.log — ALL typed entries go in the current gate D0 file; state.log is D2 + D1 only
 
 ---
 

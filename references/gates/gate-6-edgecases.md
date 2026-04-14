@@ -19,10 +19,9 @@ If any prerequisite is missing, return to the appropriate gate file before proce
 
 | What | File | Why |
 |------|------|-----|
-| Raw observations | `g6d0.log` | Gate-scoped raw data |
+| Raw observations (all typed entries including BUDGET_STATUS, etc.) | `g6d0.log` | Gate-scoped D0 — all typed entries go here |
 | D2:State updates | `state.log` | State checkpoint |
 | D1: Edge Cases Phase Summary | `state.log` | Phase completion record |
-| Final BUDGET_STATUS | `state.log` | Budget checkpoint |
 
 ## Quick Phase Map
 
@@ -170,5 +169,5 @@ Before concluding the investigation, verify:
 ☐ Re-investigation completed if s2_gaps.md provided (P32+)
 ☐ D2:State updated with final state
 ☐ D1: Edge Cases Phase Summary written
-☐ Final BUDGET_STATUS written
+☐ Final BUDGET_STATUS written (to g6d0.log)
 ☐ Investigation complete — proceed to compaction (see `references/compaction.md`)

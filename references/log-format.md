@@ -11,7 +11,7 @@ Agent 1 writes these entries. Agent 2 reads them. Every entry must follow this s
 The investigation output is a set of files, not a single monolithic log:
 
 ```
-state.log          ← D2:State + D1 summaries + BUDGET_STATUS + key SYSTEM artifacts
+state.log          ← D2:State (replaced at top) + D1 summaries (bottom-up only)
 g1d0.log           ← Raw observations from Gate 1 (P0–P8a)
 g2d0.log           ← Raw observations from Gate 2 (P9–P13c)
 g3d0.log           ← Raw observations from Gate 3 (P14–P16b)
@@ -22,21 +22,15 @@ g6d0.log           ← Raw observations from Gate 6 (P28–P32+)
 
 ### state.log — State & Summaries
 
-D2:State is replaced at the top; D1, BUDGET_STATUS, and SYSTEM entries are appended below. Contains the D2/D1/BUDGET hierarchy and key synthesis SYSTEM entries. Never contains raw observation entries (REQUEST, DOM_SNAPSHOT, COOKIE, etc.).
+state.log contains ONLY two types of content: D2:State (single entry at top, replaced at trigger points) and D1 phase summaries (ordered bottom-up, newest above oldest). No typed entries belong in state.log — they all go in the gate D0 files. The D1 `ents:` range chains back to the specific gate D0 entries.
 
 **Write targets for state.log:**
 - D2:State replacement (at trigger points — single entry at top, replaced each time)
-- D1 phase summaries (at gate boundaries)
-- BUDGET_STATUS entries (at P8, P13, P16, and when budget exhausted)
-- COOKIE_DEPENDENCY_MAP (at P7)
-- HTTP_REQUEST_CHAIN (at P27)
-- consent_flow_map (at P7c, EU only)
-- INVESTIGATION_FIRST_PASS_COMPLETE (at P13c)
-- Site brief field verification (at P16b)
+- D1 phase summaries (at gate boundaries, inserted above previous D1)
 
 ### gNd0.log — Gate Raw Observations
 
-Append-only per gate. Contains all typed observation entries (REQUEST, DOM_SNAPSHOT, COOKIE, LOCAL_STORAGE, EDGE_CASE_TEST, SERVICE_WORKER, UNKNOWN, SESSION, and operational SYSTEM entries). A gate D0 file is naturally frozen when the gate completes — no explicit freeze step needed.
+Append-only per gate. Contains ALL typed entries — both raw observations (REQUEST, DOM_SNAPSHOT, COOKIE, LOCAL_STORAGE, EDGE_CASE_TEST, SERVICE_WORKER, UNKNOWN, SESSION) and synthesis artifacts (BUDGET_STATUS, SYSTEM entries like COOKIE_DEPENDENCY_MAP, HTTP_REQUEST_CHAIN, consent_flow_map, INVESTIGATION_FIRST_PASS_COMPLETE, site brief verification). A gate D0 file is naturally frozen when the gate completes — no explicit freeze step needed.
 
 ---
 
@@ -48,9 +42,9 @@ Append-only per gate. Contains all typed observation entries (REQUEST, DOM_SNAPS
 4. Every entry has a `phase` indicating which priority queue step produced it
 5. Source field: `source: cdp_passive | agent_active | system`
 6. No free-form prose in data fields. Notes and descriptions are fine. Conclusions are not.
-7. D0 files are append-only. state.log: D2:State is replaced at the top; all other entries are appended.
+7. D0 files are append-only. state.log: D2:State is replaced at the top; D1 summaries are inserted bottom-up. No typed entries belong in state.log.
 8. Truncation must be marked: `[TRUNCATED at N chars of total M]`
-9. Raw observation entries go in the current gate's D0 file. State and synthesis entries go in state.log.
+9. ALL typed entries go in the current gate's D0 file. state.log contains ONLY D2:State and D1 summaries.
 
 ---
 
@@ -74,7 +68,7 @@ The gate prefix makes every ID **self-locating** — the ID itself tells you whi
 - Each gate D0 file has its own counter starting at 001.
 - Counter increments by 1 for each new entry in that file.
 - Counters are never reset or renumbered — even after compaction removes duplicates, gaps in numbering are acceptable.
-- state.log entries (D2, D1, BUDGET_STATUS, SYSTEM) use the gate number of the gate they belong to. D2:State and D1 summaries always use the current gate's prefix.
+- D2:State and D1 summaries in state.log do not have their own `gN:NNN` IDs — they are structural sections, not typed entries. Only gate D0 file entries get `gN:NNN` IDs. D1 summaries reference their gate D0 entries via the `ents:` range.
 
 ### Cross-Reference Fields
 

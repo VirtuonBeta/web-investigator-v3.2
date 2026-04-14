@@ -69,9 +69,7 @@ D2:State is a single entry (replaced, not appended). No trimming needed.
 
 Keep all D1 summaries — they are the primary context recovery artifact for the analyst.
 
-Keep all BUDGET_STATUS entries — they show budget progression.
-
-Keep all synthesis SYSTEM entries (COOKIE_DEPENDENCY_MAP, HTTP_REQUEST_CHAIN, consent_flow_map, etc.).
+state.log contains ONLY D2:State and D1 summaries. All typed entries (BUDGET_STATUS, SYSTEM, etc.) are in the gate D0 files — they are compacted in Steps 2-4 above.
 
 ### Step 6: Write Compaction Manifest
 
@@ -99,7 +97,7 @@ Trim rules: §Step 4
 
 ## Important Constraints
 
-- **Compaction is a per-file operation.** Each gate D0 file is compacted independently. state.log gets its own cleanup (D2:State is already a single entry — no trimming needed).
+- **Compaction is a per-file operation.** Each gate D0 file is compacted independently. state.log needs no compaction — it only contains D2:State (single entry) and D1 summaries (all kept).
 - **Compaction runs ONCE, after the investigation.** Do not compact during investigation — you need the full log for context recovery.
 - **The analyst receives the set of files** (state.log + g1d0.log through g6d0.log). The originals are available in `s1_log_full/` if they need them, but the compacted versions are the default deliverable.
 - **Compaction does NOT add analysis.** It only removes duplicates, applies corrections, and trims noise. No new observations or conclusions are added.

@@ -13,12 +13,9 @@ This file provides the HOW for each investigation step. The WHY lives in SKILL.m
 
 | What | File | Why |
 |------|------|-----|
-| Raw observations (REQUEST, DOM_SNAPSHOT, COOKIE, LOCAL_STORAGE, EDGE_CASE_TEST, SERVICE_WORKER, UNKNOWN, operational SYSTEM) | `g1d0.log` | Gate-scoped raw data |
+| Raw observations (all typed entries including BUDGET_STATUS, COOKIE_DEPENDENCY_MAP, consent_flow_map, etc.) | `g1d0.log` | Gate-scoped D0 — all typed entries go here |
 | D2:State updates | `state.log` | State checkpoint |
 | D1: Baseline Phase Summary | `state.log` | Phase completion record |
-| BUDGET_STATUS (at P8) | `state.log` | Budget checkpoint |
-| COOKIE_DEPENDENCY_MAP (at P7) | `state.log` | Key synthesis artifact |
-| consent_flow_map (at P7c, EU only) | `state.log` | Key synthesis artifact |
 
 ## Quick Phase Map
 
@@ -28,7 +25,7 @@ This file provides the HOW for each investigation step. The WHY lives in SKILL.m
 | Phase 1 | P1 → P8a | Baseline — what IS this site? |
 | Phase 2 | P9 → P13c | Content discovery — how is content structured? (see `references/gates/gate-2-pagination.md`) |
 
-**Write gate at P8.** All pending observations must be logged, D2:State updated, D1 Phase Summary written, BUDGET_STATUS written, before proceeding to Gate 2.
+**Write gate at P8.** All pending observations must be logged, D2:State updated, D1 Phase Summary written, before proceeding to Gate 2. BUDGET_STATUS and COOKIE_DEPENDENCY_MAP go in g1d0.log as typed entries.
 
 ---
 
@@ -558,12 +555,12 @@ Before proceeding to Gate 2, verify:
 ☐ Head section analyzed (preconnect domains, CSP, CORS)
 ☐ SPA route detection completed
 ☐ All cookies logged with origin tracking
-☐ COOKIE_DEPENDENCY_MAP written
+☐ COOKIE_DEPENDENCY_MAP written (to g1d0.log)
 ☐ LocalStorage captured
 ☐ Consent flow mapping completed (if EU site)
 ☐ robots.txt and sitemap.xml parsed
 ☐ Sitemap URL patterns classified
 ☐ D2:State updated
 ☐ D1: Baseline Phase Summary written
-☐ BUDGET_STATUS written
+☐ BUDGET_STATUS written (to g1d0.log)
 ☐ Re-read `references/gates/gate-2-pagination.md` BEFORE writing first entry of Gate 2
