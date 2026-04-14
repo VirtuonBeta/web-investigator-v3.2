@@ -1,32 +1,39 @@
 # Gate 2: Content Discovery & Pagination (P9–P13c)
 
-Reference file for the Web Investigator (Agent 1 v3.2). Read this file after completing Gate 1 (P0–P8a). After completing P13c, HALT and present log to operator. When operator resumes, read `references/gates/gate-3-inspection.md` for content item inspection (P14–P16b).
+```yaml
+gate_id: 2
+title: Content Discovery & Pagination
+steps: P9 → P13c
+phases: [2]
+d0_file: g2d0.log
+operator_halt: true
+next_gate: references/gates/gate-3-inspection.md
+```
 
-This file provides the HOW for each investigation step. The WHY lives in SKILL.md.
+Read this file after completing Gate 1 (P0–P8a). After completing P13c, HALT and present log to operator. When operator resumes, read `references/gates/gate-3-inspection.md`. This file provides the HOW. The WHY lives in SKILL.md.
 
-## Prerequisites from Gate 1
+---
 
-Before using this file, you should already have (from `references/gates/gate-1-baseline.md`):
+## Prerequisites
+
 - [ ] DOM snapshot (P3) with extraction path types classified
 - [ ] Rendering classification determined (P6/P5a)
 - [ ] Cookie/localStorage data captured (P7/P7b)
 - [ ] If EU site: consent flow mapping completed (P7c)
 
-If any prerequisite is missing, return to `references/gates/gate-1-baseline.md` before proceeding.
-
 ## Write Targets
 
-| What | File | Why |
-|------|------|-----|
-| Raw observations (all typed entries including BUDGET_STATUS, INVESTIGATION_FIRST_PASS_COMPLETE, etc.) | `g2d0.log` | Gate-scoped D0 — all typed entries go here |
-| D2:State updates | `state.log` | State checkpoint |
-| D1: Content Discovery Phase Summary | `state.log` | Phase completion record |
+| What | File |
+|------|------|
+| Raw observations (all typed entries incl. BUDGET_STATUS, INVESTIGATION_FIRST_PASS_COMPLETE) | `g2d0.log` |
+| D2:State updates | `state.log` |
+| D1: Content Discovery Phase Summary | `state.log` |
 
-## Quick Phase Map
+## Phase Map
 
 | Phase | Steps | Purpose |
 |-------|-------|---------|
-| Phase 2 | P9 → P13c | Content discovery — how is content structured? |
+| 2 | P9 → P13c | Content discovery — how is content structured? |
 
 **HALT after P13c.** Present log to operator. Do not proceed without instruction.
 
@@ -34,15 +41,16 @@ If any prerequisite is missing, return to `references/gates/gate-1-baseline.md` 
 
 ## Phase 2: Content Discovery (~5 cycles)
 
-> **Phase gate reminder:** Before starting Phase 2, verify that Phase 1 completed successfully (see `references/gates/gate-1-baseline.md`). You should have: a DOM snapshot (P3), a rendering classification (P6), and cookie/localStorage data (P7/P7b). If any of these are missing, return to `references/gates/gate-1-baseline.md` before proceeding — Phase 2 depends on understanding the page's baseline state.
->
-> ☐ Write D1 phase summary for completed phase before proceeding.
-
 ---
 
 ### [P9] Content structure identification
 
-This step identifies the fundamental content units on the page — what items exist, how many are visible, and how they're structured. This drives every subsequent content-related step.
+```yaml
+step: P9
+cycle: true
+condition: ALWAYS
+log: { type: DOM_SNAPSHOT, context: content_structure }
+```
 
 **Identify:**
 
@@ -51,24 +59,32 @@ This step identifies the fundamental content units on the page — what items ex
 - **Shadow DOM check:** If P3a detected shadow hosts with content items, note which fields need shadow DOM piercing to access.
 - **Different item types?** (featured vs standard, pinned vs organic, sponsored vs editorial)
 
-**Log:** DOM_SNAPSHOT with context `content_structure`.
-
 **If ZERO items visible:**
 
-- Log SYSTEM event `empty_content_state`.
-- Check: loading spinner? "No results" message? Content after scroll/wait?
-- **If RSC detected (P5a):** Wait for streaming completion + `readyState` check.
-- **If content never appears:** This is a BLOCKER — the page may require authentication, may be geo-restricted, or may be blocking your UA.
+| Observation | Action |
+|------------|--------|
+| Loading spinner | Wait for content to load |
+| "No results" message | Log as empty state |
+| Content after scroll/wait | Proceed with items found |
+| RSC detected (P5a) | Wait for streaming completion + `readyState` check |
+| Content never appears | **BLOCKER** — may require auth, geo-restricted, or blocking UA |
+
+Log SYSTEM event `empty_content_state`.
 
 **Date field check:** For each content card, inspect the date/time element. If the text is relative ("3h ago", "2d ago"), check for: (1) `<time datetime="...">` with ISO 8601, (2) `data-datetime` or `data-timestamp` attribute, (3) JSON in embedded data with absolute date. If none found, log `FEED_TIME: relative-only` in the extraction_map and flag in D2:Open that date filtering on the feed page requires relative-time parsing or detail-page visits.
 
-**Why this matters:** If you can't identify content items, you can't click into them (P14), can't test pagination (P10-P13), and can't do structural comparison (P22). This step gates the entire content pipeline.
+**Feeds into:** P14 (click-through), P10-P13 (pagination), P22 (structural comparison).
 
 ---
 
 ### [P9a] IntersectionObserver detection
 
-Many sites use IntersectionObserver (IO) for lazy-loading content — items appear only when they scroll into the viewport. This is different from click-based pagination and requires different interaction patterns to trigger.
+```yaml
+step: P9a
+cycle: true
+condition: ALWAYS
+log: { type: EDGE_CASE_TEST, test_id: INTERSECTION_OBSERVER_DETECTED }
+```
 
 **Detect IO-based lazy loading via behavior, not API inspection:**
 
@@ -81,12 +97,10 @@ Many sites use IntersectionObserver (IO) for lazy-loading content — items appe
    - Batch size: item count delta
    - New scrollHeight (for depth estimation)
 6. If count unchanged AND scrollHeight unchanged → NO_IO_DETECTED.
-7. If count unchanged BUT scrollHeight grew → IO may have loaded off-screen
-   content. Scroll again to new bottom, wait 3s, re-check.
-8. After confirming IO, continue scrolling in stages to map full pagination
-   depth (batch count, total items, exhaustion point).
+7. If count unchanged BUT scrollHeight grew → IO may have loaded off-screen content. Scroll again to new bottom, wait 3s, re-check.
+8. After confirming IO, continue scrolling in stages to map full pagination depth (batch count, total items, exhaustion point).
 
-**IO endpoint extraction:** When IO loading is detected, CDP will have captured the XHR/fetch requests that loaded the new items. Extract these from CDP captures and log them as part of the P9a observation:
+**IO endpoint extraction:** When IO loading is detected, CDP will have captured the XHR/fetch requests that loaded the new items. Extract from CDP captures:
 
 - **Endpoint URL(s):** The XHR/fetch URLs that IO triggered (e.g., `/v2/articles?offset=24`)
 - **Batch size:** Number of items returned per IO request
@@ -94,15 +108,20 @@ Many sites use IntersectionObserver (IO) for lazy-loading content — items appe
 
 This extraction is critical because P11 (pagination trigger) assumes a button/scroll action. If the mechanism is pure IO, P11 needs to know which endpoint to probe — and P9a already triggered it.
 
-**Log:** EDGE_CASE_TEST with test_id `INTERSECTION_OBSERVER_DETECTED`. Include `io_endpoints` array with URL, batch_size, and total_count (if found) in the entry details.
+Include `io_endpoints` array with URL, batch_size, and total_count (if found) in the entry details.
 
-**Why viewport simulation matters:** IO-based loading responds to elements entering the viewport, not to scroll events. Just firing `scroll` events won't trigger IO observers — you need to actually change the viewport position. This is a common pitfall that leads to false "no more content" conclusions.
+**Feeds into:** P11 (pagination trigger — IO endpoints), P10 (mechanism classification).
 
 ---
 
 ### [P10] Pagination mechanism identification
 
-Pagination determines how you access content beyond the first page. Different mechanisms require different interaction strategies, and some have traps that can waste your entire budget.
+```yaml
+step: P10
+cycle: true
+condition: ALWAYS
+log: null
+```
 
 **CRITICAL: Scan ALL signal types before classifying.** Decision-tree pagination identification is the #1 cause of "stuck at first page" failures — the agent finds one mechanism (e.g., IO lazy-loading), classifies it, and stops looking. On Yahoo Finance, this caused the agent to identify infinite scroll and miss the underlying cursor API that was the real pagination mechanism.
 
@@ -121,6 +140,7 @@ Pagination determines how you access content beyond the first page. Different me
 **After scanning all 7, classify the mechanism(s):**
 
 A site can have MULTIPLE pagination mechanisms (e.g., IO for initial load + cursor API for deep pagination). Log EACH mechanism found, ranked by priority for scraper construction:
+
 - **Primary:** The mechanism that provides the most complete data access (usually the XHR/fetch API if found)
 - **Secondary:** Any additional mechanism that provides access to different content or different pages
 
@@ -140,21 +160,26 @@ Crawl trap thresholds per SKILL.md §Rate Limiting & Safety.
 
 **Brief contradiction check:** If site_brief mentions pagination/infinite scroll as a known or likely feature, AND P9a reports NO_IO_DETECTED, AND P10 finds NO pagination mechanism at all → flag as potential false negative in D2:Open. Recommend P-X re-investigation with deeper scroll in `reinvestigation_recommendations`.
 
-**Log:** All signal types detected (not just the first one found), classified mechanism(s) with priority ranking, trigger element selectors. If a button is found, log its exact selector — you'll need it for P11.
+**Log:** All signal types detected (not just the first one found), classified mechanism(s) with priority ranking, trigger element selectors.
 
-**Why this matters:** Pagination is how you determine the full scope of available content. Without understanding the pagination mechanism, you can't estimate content volume, can't test API replay, and risk falling into crawl traps that consume your entire budget. The scan-first approach prevents the common failure mode where the agent identifies IO lazy-loading and stops, missing the underlying cursor API.
+**Feeds into:** P11 (trigger), P12 (response), P13 (replay).
 
 ---
 
 ### [P11] Trigger pagination with depth probing — WITH CDP
 
-Now that you know the pagination mechanism, trigger it while CDP is listening. Depth probing (up to 5 pages) catches "soft caps" where pagination works for the first few pages then degrades — a pattern that a single trigger would miss.
+```yaml
+step: P11
+cycle: true
+condition: P10 identified a pagination mechanism (not NONE_SINGLE_PAGE)
+log: { type: EDGE_CASE_TEST, test_id: pagination_depth_probing }
+```
 
 **Procedure:**
 
-- Click button / scroll / follow page link according to the mechanism identified in P10.
-- **Respect crawl trap boundaries** from P10 — don't trigger beyond safe limits.
-- CDP captures the XHR/fetch request automatically.
+1. Click button / scroll / follow page link according to the mechanism identified in P10.
+2. **Respect crawl trap boundaries** from P10 — don't trigger beyond safe limits.
+3. CDP captures the XHR/fetch request automatically.
 
 **Depth probing (up to 5 pages):**
 
@@ -170,43 +195,53 @@ Now that you know the pagination mechanism, trigger it while CDP is listening. D
 
 **If request goes to a THIRD-PARTY domain:** Log EDGE_CASE_TEST `THIRD_PARTY_CMS_API`.
 
-- Note the CMS provider if identifiable from the response structure:
-  - **Sanity:** Look for `_type`, `_key`, `_ref` fields.
-  - **Contentful:** Look for `sys.type`, `sys.id` fields.
-  - **Strapi:** Look for REST-style format with `id`, `attributes` structure.
-- **A third-party CMS response is the PRIMARY data source** — it's the raw content before any frontend transformation.
+| CMS Provider | Signature Fields |
+|---|---|
+| **Sanity** | `_type`, `_key`, `_ref` fields |
+| **Contentful** | `sys.type`, `sys.id` fields |
+| **Strapi** | REST-style format with `id`, `attributes` structure |
 
-**Why this matters:** The pagination API call is often the most valuable single observation in the entire investigation. It reveals the data endpoint, the response schema, the cursor/page mechanism, and potentially the CMS provider. Depth probing catches soft caps that a single trigger would miss — some sites return full data for pages 1-3 then degrade at page 4. Without probing, you'd log "pagination works fine" and the scraper would break in production.
+Note the CMS provider if identifiable from the response structure. A third-party CMS response is the **PRIMARY data source** — it's the raw content before any frontend transformation.
+
+**Feeds into:** P12 (response examination), P13 (replay), D2:State (CMS classification).
 
 ---
 
 ### [P12] Examine pagination response
 
-The pagination response schema reveals how the site structures its data, how it signals "no more content," and what fields are available. This is the blueprint for constructing replay requests.
+```yaml
+step: P12
+cycle: true
+condition: ALWAYS (after P11)
+log: { type: DOM_SNAPSHOT, context: pagination_response_schema }
+```
 
 **Examine:**
 
-- **Schema:** What fields exist? What are their types? What's the nesting structure?
-- **Cursor fields:** How does the site track position? (`cursor`, `offset`, `after`, `page`, etc.)
-- **Has-more signal:** How does the site indicate more content is available? (`hasNextPage`, `hasMore`, `totalPages > currentPage`, absence of signal, etc.)
+1. **Schema:** What fields exist? What are their types? What's the nesting structure?
+2. **Cursor fields:** How does the site track position? (`cursor`, `offset`, `after`, `page`, etc.)
+3. **Has-more signal:** How does the site indicate more content is available? (`hasNextPage`, `hasMore`, `totalPages > currentPage`, absence of signal, etc.)
 
 **Log:** Full response schema.
 
-**Why this matters:** Understanding the response schema is prerequisite for P13 (replay) and for estimating total content volume. If you can't parse the cursor, you can't replay. If you can't find the has-more signal, you can't determine when to stop.
+**Feeds into:** P13 (replay), P12b (overlap), content volume estimation.
 
 ---
 
 ### [P12b] Source overlap check
 
-When a site uses both SSR and API-pagination, the initial page load may contain some content items that also appear in the API response. Understanding the overlap tells you whether you have one data source or two, which affects extraction strategy.
+```yaml
+step: P12b
+cycle: true
+condition: ALWAYS (after P12)
+log: null
+```
 
 **Procedure:**
 
-- Compare initial SSR content (P9) against pagination response items.
-- Match by URL or item ID.
-- Count: SSR-only, API-only, overlap, total unique.
-
-**Interpretation:**
+1. Compare initial SSR content (P9) against pagination response items.
+2. Match by URL or item ID.
+3. Count: SSR-only, API-only, overlap, total unique.
 
 | Overlap | Meaning | Action |
 |---|---|---|
@@ -214,18 +249,23 @@ When a site uses both SSR and API-pagination, the initial page load may contain 
 | Partial | Some items appear in both, some are unique to each source | Log EDGE_CASE_TEST `SSR_API_SOURCE_OVERLAP` with percentages |
 | Complete | SSR content is a subset of the API | Log in worklog "SSR subset of API" |
 
-**Why this matters:** If SSR and API are disjoint, you need both sources for complete coverage. If SSR is a subset of API, you only need the API. This determination directly affects extraction strategy and completeness.
+**Feeds into:** Extraction strategy (single vs dual source), completeness assessment.
 
 ---
 
 ### [P12c] Search form discovery
 
-Search and filter forms are deep web entry points — they expose content that isn't reachable by browsing or pagination alone. Identifying these forms early lets you probe them for API endpoints.
+```yaml
+step: P12c
+cycle: true
+condition: ALWAYS
+log: { type: SYSTEM, event: SEARCH_FORM_INVENTORY }
+```
 
 **Procedure:**
 
-- Scan all visited pages for `<form>` elements.
-- Cross-reference with sitemap deep web patterns from P8a (query-parameter URLs).
+1. Scan all visited pages for `<form>` elements.
+2. Cross-reference with sitemap deep web patterns from P8a (query-parameter URLs).
 
 **Classify each form:**
 
@@ -240,39 +280,45 @@ Search and filter forms are deep web entry points — they expose content that i
 
 **For SEARCH and FILTER forms only,** log: selector, action URL, method, all input fields, estimated item count, whether it's a PRIMARY content access method.
 
-**Log:** SYSTEM entry `SEARCH_FORM_INVENTORY`.
-
 **If no search/filter forms:** Log in worklog "No deep web search forms detected."
 
-**Why this matters:** Search forms are the gateway to the deep web — content that exists in the site's database but isn't linked from any page. Probing these forms (P13c) can reveal API endpoints that return structured data for any query.
+**Feeds into:** P13c (search form probe).
 
 ---
 
 ### [P13] Test pagination replay
 
-The ultimate goal is to determine whether the pagination API can be called directly, without a browser. If it can, extraction is trivial — just replay the request in a loop. If it can't, you need to understand what's required (cookies, tokens, headers) and whether those requirements can be met.
+```yaml
+step: P13
+cycle: true
+condition: ALWAYS (after P12)
+log: { type: EDGE_CASE_TEST, test_id: pagination_replay }
+```
 
 **Procedure:**
 
-- Take the exact pagination XHR URL from P11.
-- Replay it via raw HTTP (outside the browser, using `fetch` or equivalent).
-- Compare the response to the browser-captured response.
+1. Take the exact pagination XHR URL from P11.
+2. Replay it via raw HTTP (outside the browser, using `fetch` or equivalent).
+3. Compare the response to the browser-captured response.
 
-**Log:** EDGE_CASE_TEST for `pagination_replay`.
+| Outcome | Meaning | Action |
+|---|---|---|
+| Same response | Clean replay — API is freely accessible | Proceed |
+| Different response (but valid) | Server-side variation (A/B testing, personalization) | Still usable |
+| Error/blocked | API requires something the browser provides | → Phase 5 (gate-4-exploration.md) to diagnose |
 
-**Possible outcomes:**
-
-- **Same response:** Clean replay. The API is freely accessible.
-- **Different response (but valid):** Some server-side variation (A/B testing, personalization). Still usable.
-- **Error/blocked:** The API requires something the browser provides that raw HTTP doesn't. Move to Phase 5 (→ gate-4-exploration.md) to diagnose what.
-
-**Why this matters:** Replay success determines the entire extraction architecture. A replayable API means simple HTTP fetching. A non-replayable API means you need browser automation, which is slower and more expensive.
+**Feeds into:** Extraction architecture (HTTP vs browser), P13b (TLS diagnostic if blocked).
 
 ---
 
 ### [P13b] TLS fingerprint diagnostic
 
-This step is triggered when P13 (or P24/P28/P29) raw HTTP replay fails with NO HTTP status code — meaning the connection itself was rejected, not the request. This pattern strongly suggests TLS fingerprinting: the server is checking the TLS handshake characteristics and rejecting non-browser clients.
+```yaml
+step: P13b
+cycle: true
+condition: P13 (or P24/P28/P29) raw HTTP replay failed with NO HTTP status code
+log: { type: EDGE_CASE_TEST, test_id: NON_HTTP_REPLAY_FAILURE }
+```
 
 **Trigger conditions (all must be true):**
 
@@ -284,22 +330,32 @@ This step is triggered when P13 (or P24/P28/P29) raw HTTP replay fails with NO H
 
 When P13b fires, do NOT just log "probably TLS fingerprinting." Run 2 additional requests to determine the fingerprint type:
 
-1. **Minimal headers request:** Send raw HTTP with only `Host` and `User-Agent` headers. If this also fails with no HTTP status → confirms fingerprinting, continue to test 2.
-2. **Full browser headers request:** Send raw HTTP with a complete browser header set (`Accept`, `Accept-Language`, `Accept-Encoding`, `Sec-Fetch-Dest`, `Sec-Fetch-Mode`, `Sec-Fetch-Site`, `Sec-Ch-Ua`, `Sec-Ch-Ua-Mobile`, `Sec-Ch-Ua-Platform`, `Upgrade-Insecure-Requests`). If this SUCCEEDS, the fingerprinting is **header-based** — the server checks header presence/ordering, not TLS. If this also FAILS, the fingerprinting is **TLS-based** — the server checks the TLS handshake.
+| # | Request | If Fails | If Succeeds |
+|---|---------|----------|-------------|
+| 1 | Minimal headers (only `Host` + `User-Agent`) | → Confirms fingerprinting, continue to test 2 | → Not fingerprinting |
+| 2 | Full browser headers (`Accept`, `Accept-Language`, `Accept-Encoding`, `Sec-Fetch-Dest`, `Sec-Fetch-Mode`, `Sec-Fetch-Site`, `Sec-Ch-Ua`, `Sec-Ch-Ua-Mobile`, `Sec-Ch-Ua-Platform`, `Upgrade-Insecure-Requests`) | → **TLS-based** — server checks TLS handshake | → **Header-based** — server checks header presence/ordering |
 
-**Why this distinction matters:**
-- **Header fingerprinting** → Solvable by sending the right headers in the scraper. Trivial fix.
-- **TLS fingerprinting** → Requires `curl-impersonate`, `got-scraping`, or similar TLS-mimicking tools. Hard constraint.
+| Fingerprint Type | Constraint | Solution |
+|---|---|---|
+| Header-based | Solvable by sending the right headers | Trivial fix — include correct headers in scraper |
+| TLS-based | Raw HTTP replay impossible without TLS impersonation | Requires `curl-impersonate`, `got-scraping` — hard constraint |
 
-**Log:** EDGE_CASE_TEST `NON_HTTP_REPLAY_FAILURE` with `fingerprint_type: "header" | "tls" | "none"` field.
+**Log:** EDGE_CASE_TEST `NON_HTTP_REPLAY_FAILURE` with `fingerprint_type: "header" | "tls" | "none"`.
 
-**Implications:** TLS fingerprinting means raw HTTP replay is impossible without TLS impersonation. This is a significant constraint on extraction strategy — you may need to use the browser for all data access, or use a tool that can impersonate browser TLS fingerprints. Header fingerprinting is much easier to work around — the analyst just needs to include the right headers.
+**Feeds into:** Extraction strategy (browser requirement), D2:Open (TLS constraint flag).
 
 ---
 
 ### [P13c] Search form probe
 
-If P12c found search or filter forms, probe up to 2 of them to discover deep web API endpoints. Prioritize forms that appear to be the PRIMARY content access method (e.g., a product search on an e-commerce site).
+```yaml
+step: P13c
+cycle: true
+condition: P12c found search or filter forms
+log: null
+```
+
+Probe up to 2 forms from P12c to discover deep web API endpoints. Prioritize PRIMARY content access methods.
 
 **Procedure:**
 
@@ -312,17 +368,16 @@ If P12c found search or filter forms, probe up to 2 of them to discover deep web
 
 | Outcome | Meaning | Log |
 |---|---|---|
-| XHR/fetch triggered | Deep web endpoint found — the form submits to an API | EDGE_CASE_TEST `DEEP_WEB_ENDPOINT_FOUND` |
+| XHR/fetch triggered | Deep web endpoint found — form submits to an API | EDGE_CASE_TEST `DEEP_WEB_ENDPOINT_FOUND` |
 | Full page navigation | Form navigates to a search results page | EDGE_CASE_TEST `SEARCH_FORM_NAVIGATION` |
-| Form appears stateful (POST to `/api/create`) | This is a write endpoint, not a search — DO NOT SUBMIT | SYSTEM `SEARCH_FORM_SKIPPED_STATEFUL` |
+| Form appears stateful (POST to `/api/create`) | Write endpoint, not a search — DO NOT SUBMIT | SYSTEM `SEARCH_FORM_SKIPPED_STATEFUL` |
 | CAPTCHA | Bot detection triggered | BLOCKER |
 
 **Budget:** Max 2 form probes.
 
-**Why this matters:** Search form API endpoints often accept arbitrary query parameters and return structured data. They're the most powerful deep web access point — a single search endpoint can expose the entire content catalog.
+**Feeds into:** Deep web extraction endpoints, D2:State (search API classification).
 
 ---
-
 
 **Pre-halt steps complete.** After the operator resumes, switch to `references/gates/gate-3-inspection.md` for Phase 3 (P14–P16b), then `references/gates/gate-4-exploration.md` for Phases 4–8 (P17–P32+).
 
@@ -330,20 +385,20 @@ If P12c found search or filter forms, probe up to 2 of them to discover deep web
 
 Before halting and presenting to operator, verify:
 
-☐ Content items identified with selectors (P9)
-☐ Date field check completed (P9)
-☐ IntersectionObserver detection completed (P9a)
-☐ Pagination mechanism classified — ALL 7 signal types scanned (P10)
-☐ Pagination triggered with depth probing (P11)
-☐ Pagination response examined (P12)
-☐ Source overlap checked (P12b)
-☐ Search forms discovered and probed (P12c)
-☐ Pagination replay tested (P13)
-☐ TLS fingerprint diagnostic completed if needed (P13b)
-☐ Search form probe completed (P13c)
-☐ D2:State updated
-☐ D1: Content Discovery Phase Summary written
-☐ BUDGET_STATUS written (to g2d0.log)
-☐ INVESTIGATION_FIRST_PASS_COMPLETE SYSTEM entry written (to g2d0.log)
-☐ Awaiting operator instruction to continue
-☐ When resuming: read `references/gates/gate-3-inspection.md`
+- [ ] Content items identified with selectors (P9)
+- [ ] Date field check completed (P9)
+- [ ] IntersectionObserver detection completed (P9a)
+- [ ] Pagination mechanism classified — ALL 7 signal types scanned (P10)
+- [ ] Pagination triggered with depth probing (P11)
+- [ ] Pagination response examined (P12)
+- [ ] Source overlap checked (P12b)
+- [ ] Search forms discovered and probed (P12c)
+- [ ] Pagination replay tested (P13)
+- [ ] TLS fingerprint diagnostic completed if needed (P13b)
+- [ ] Search form probe completed (P13c)
+- [ ] D2:State updated
+- [ ] D1: Content Discovery Phase Summary written
+- [ ] BUDGET_STATUS written (to g2d0.log)
+- [ ] INVESTIGATION_FIRST_PASS_COMPLETE SYSTEM entry written (to g2d0.log)
+- [ ] Awaiting operator instruction to continue
+- [ ] When resuming: read `references/gates/gate-3-inspection.md`
