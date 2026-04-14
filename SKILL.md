@@ -123,7 +123,7 @@ Write to the log at these trigger points — not every step, but at meaningful b
 
 | Trigger | What to Write | Why |
 |---------|---------------|-----|
-| Phase boundary (P8, P13, P16, P22, P27, P32) | D2:State update + D1 if phase complete | Context recovery — if interrupted, you can resume from last checkpoint |
+| Phase boundary (P8, P13, P16, P22, P27, P31) | D2:State update + D1 if phase complete | Context recovery — if interrupted, you can resume from last checkpoint |
 | Context pressure (feeling uncertain about prior state) | D2:State with context_risk: MEDIUM/HIGH + re-read | Prevents drift — you work from facts, not vague memory |
 | BLOCKER or unexpected discovery | D0 entry immediately | Critical events must not be lost if run aborts |
 | Operator spot-check ("show me your D2:State") | D2:State update | Operator needs accurate state to make decisions |
@@ -171,7 +171,16 @@ After the investigation completes, run the compaction procedure to produce a cle
 
 ## Investigation Flow
 
-The investigation proceeds through priority phases. Each phase has a purpose and a budget allocation. Read `references/priority-queue-prehalt.md` for steps P0–P13c (before the first-pass halt) and `references/priority-queue-posthalt.md` for steps P14–P33+ (after resumption). The overview here tells you the WHY; the references tell you the HOW.
+The investigation proceeds through priority phases, each aligned with a gate file. Each phase has a purpose and a budget allocation. Read the relevant gate file before each phase — the overview here tells you the WHY; the gate files tell you the HOW.
+
+| Phase | Steps | Gate File |
+|-------|-------|----------|
+| Phase 0–1 | P0–P8a | `references/gates/gate-1-baseline.md` |
+| Phase 2 | P9–P13c | `references/gates/gate-2-pagination.md` |
+| Phase 3 | P14–P16b | `references/gates/gate-3-inspection.md` |
+| Phase 4 | P17–P22 | `references/gates/gate-4-exploration.md` |
+| Phase 5 | P23–P27 | `references/gates/gate-5-replay.md` |
+| Phase 6–8 | P28–P32+ | `references/gates/gate-6-edgecases.md` |
 
 ### Phase 0–1: Mandatory Baseline (~8 cycles)
 
@@ -211,7 +220,7 @@ Key outputs: content item types and selectors identified, pagination mechanism c
 
 ### Phase 6: Edge Case Battery (~5 cycles)
 
-**Purpose:** Test boundary conditions that affect scraper reliability — mobile, empty UA, cookie-less requests, rate limits.
+**Purpose:** Test boundary conditions that affect scraper reliability — empty UA, cookie-less requests, rate limits.
 
 ### Phase 7: Re-Investigation (only if s2_gaps.md provided)
 
@@ -219,7 +228,7 @@ Execute specific requests from the analyst. Each request gets up to 5 cycles.
 
 ### Open Exploration (P-X, lowest priority, ~15% remaining budget)
 
-Investigate unexpected observations not covered by P1–P32. Must log what triggered the exploration and why.
+Investigate unexpected observations not covered by P1–P31. Must log what triggered the exploration and why.
 
 ---
 
@@ -304,7 +313,7 @@ Handle barriers BEFORE content investigation:
 | CAPTCHA/challenge | BLOCKER — do not attempt to solve |
 | Geo-restriction | Log, note in SYSTEM entry, continue with available content |
 
-**EU sites:** When Pre-Brief flags `geo_requirements: EU`, P7c is mandatory — see `references/priority-queue-prehalt.md` P7c for the full consent flow mapping procedure. Pre-Brief automatically increases baseline cycles by 2 for EU sites.
+**EU sites:** When Pre-Brief flags `geo_requirements: EU`, P7c is mandatory — see `references/gates/gate-1-baseline.md` P7c for the full consent flow mapping procedure. Pre-Brief automatically increases baseline cycles by 2 for EU sites.
 
 ---
 
@@ -322,10 +331,10 @@ FIRST-PASS HALT (after P13 completes):
       Budget remaining: {R} cycles.
       Key findings: {top 3-5 discoveries}
       Next steps: [item entry (P14-P16)] [deep exploration (P17-P22)]
-                  [replay (P23-P27)] [edge cases (P28-P32)]
+                  [replay (P23-P27)] [edge cases (P28-P31)]
       Awaiting instruction."
   4. STOP. Do NOT proceed unless operator says to continue.
-  5. When resuming: switch to references/priority-queue-posthalt.md
+  5. When resuming: read references/gates/gate-3-inspection.md
 ```
 
 **Exceptions:** The halt does NOT apply during re-investigation (s2_gaps.md provided) or when the operator explicitly says "continue investigation" or "run full investigation."
@@ -353,7 +362,7 @@ FIRST-PASS HALT (after P13 completes):
 
 These rules are critical for log quality and agent reliability. They are detailed in `references/writing-protocol.md`:
 
-- **Phase Gates** — hard write gates at P8, P13, P16, P22, P27, P32. You MUST write before proceeding.
+- **Phase Gates** — hard write gates at P8, P13, P16, P22, P27, P31. You MUST write before proceeding.
 - **Output Channel Discipline** — chat is for coordination only; all observations go to s1_log.md.
 - **Reference Read Schedule** — gate-based re-reads of reference files (see writing-protocol.md §3).
 - **Context Maintenance Trigger** — mechanical re-read of D2+D1 every 6 decision cycles.
@@ -373,10 +382,14 @@ The detailed procedures live in reference files. Read them when you need the HOW
 | File | Content | When to Read |
 |------|---------|-------------|
 | `references/writing-protocol.md` | Phase gates, output channel discipline, reference read schedule, banned phrases, cycle accounting, quick-write stubs, observation protocol | Before starting the investigation AND at each phase gate |
-| `references/priority-queue-prehalt.md` | Detailed P0–P13c steps, sub-steps, JS code, detection logic | Before starting investigation + before each phase up to P13 |
-| `references/priority-queue-posthalt.md` | Detailed P14–P33+ steps, sub-steps, JS code, detection logic | After operator resumes + before each phase from P14 onward |
+| `references/gates/gate-1-baseline.md` | Detailed P0–P8a steps — pre-flight, CDP setup, DOM, globals, cookies, robots | Before starting investigation + before Phase 0–1 |
+| `references/gates/gate-2-pagination.md` | Detailed P9–P13c steps — content structure, pagination, search forms | After Gate 1 (P8) + before Phase 2 |
+| `references/gates/gate-3-inspection.md` | Detailed P14–P16b steps — content item entry, extraction maps, hidden content | After operator resumes + before Phase 3 |
+| `references/gates/gate-4-exploration.md` | Detailed P17–P22 steps — API probing, token tracing, bundle analysis, stability matrix | Before Phase 4 |
+| `references/gates/gate-5-replay.md` | Detailed P23–P27 steps — request replay, HTTP request chain | Before Phase 5 |
+| `references/gates/gate-6-edgecases.md` | Detailed P28–P32+ steps — edge cases, open exploration, re-investigation | Before Phase 6 |
 | `references/log-format.md` | Entry types, field definitions, body capture rules, errata procedure | When writing any log entry — keep open as reference |
 | `references/compaction.md` | Post-investigation log compaction procedure | After investigation completes, before handoff |
 | `references/cdp-infrastructure.md` | CDP domain setup, health validation, capture filter, warm-up, volume management | During Phase 0 setup and when CDP issues arise |
 
-**Progressive disclosure model:** This SKILL.md tells you WHY and WHAT. The references tell you HOW. You should not need to read all references upfront — read `references/writing-protocol.md` first, then read the relevant section of `references/priority-queue-prehalt.md` (for phases 0–2) or `references/priority-queue-posthalt.md` (for phases 3–8) before each phase, and consult `references/log-format.md` when writing entries.
+**Progressive disclosure model:** This SKILL.md tells you WHY and WHAT. The gate files tell you HOW. You should not need to read all gate files upfront — read `references/writing-protocol.md` first, then read the relevant gate file before each phase (see the phase-to-file table above), and consult `references/log-format.md` when writing entries. Each gate file includes prerequisites, step procedures, and a gate output checklist.

@@ -6,7 +6,7 @@ Reference file for the Web Investigator (Agent 1 v3.2). CDP passive capture laye
 
 Read this during Phase 0 setup and when CDP issues arise.
 
-**Phase reference:** Setup steps (Pre-P1) are in `references/priority-queue-prehalt.md`. Post-halt steps that use CDP data are in `references/priority-queue-posthalt.md`.
+**Phase reference:** Setup steps (Pre-P1) are in `references/gates/gate-1-baseline.md`. Steps that use CDP data are distributed across gate files (see SKILL.md → Reference Files).
 
 ---
 
@@ -200,7 +200,7 @@ MAX_DOM_SNAPSHOTS: 30 per investigation
 **After 30 snapshots, only log DOM snapshots for:**
 
 - Content item entry pages (always log these)
-- Mobile viewport comparison (if not already done)
+- Specific DOM comparison requested by operator
 - Any DOM snapshot explicitly requested in `s2_gaps.md`
 
 For other observations, use targeted JS queries instead of full snapshots.
@@ -219,7 +219,7 @@ After parsing robots.txt:
      - If match found:
        - Log SYSTEM entry with event "UA_BLOCKED_BY_ROBOTS_TXT"
        - Set flag: raw_http_ua_blocked = true
-       - For all subsequent raw HTTP probes (P13, P17, P23-P27, P29-P30):
+       - For all subsequent raw HTTP probes (P13, P17, P23-P27, P28-P29):
          - Use a browser-like User-Agent instead
          - OR skip the request and log as DELIBERATE_VIOLATION
   3. This check must complete BEFORE any raw HTTP requests are made
@@ -248,7 +248,7 @@ Some sites fingerprint requests to detect automation:
 - Cookie presence/absence
 - Header count anomalies
 
-**Detection and classification:** When raw HTTP replay fails while browser succeeds, P13b (in `references/priority-queue-prehalt.md`) runs an active probe to determine whether the fingerprinting is header-based (solvable with correct headers) or TLS-based (requires TLS impersonation tools like `curl-impersonate`). P13b logs the result as an EDGE_CASE_TEST with `fingerprint_type: "header" | "tls" | "none"`.
+**Detection and classification:** When raw HTTP replay fails while browser succeeds, P13b (in `references/gates/gate-2-pagination.md`) runs an active probe to determine whether the fingerprinting is header-based (solvable with correct headers) or TLS-based (requires TLS impersonation tools like `curl-impersonate`). P13b logs the result as an EDGE_CASE_TEST with `fingerprint_type: "header" | "tls" | "none"`.
 
 **Do NOT log fingerprinting as UNKNOWN with a hypothesis** — use the P13b active probe instead.
 

@@ -9,7 +9,7 @@ Read this file BEFORE starting the investigation AND at each phase gate.
 ## Quick Reference (read at phase gates; full document available for deep reference)
 
 ### Gate Triggers
-P8, P13, P16, P22, P27, P32 — STOP, write all pending observations, update D2:State, write D1 phase summary, write BUDGET_STATUS (at P8, P13, P16).
+P8, P13, P16, P22, P27, P31 — STOP, write all pending observations, update D2:State, write D1 phase summary, write BUDGET_STATUS (at P8, P13, P16).
 
 ### Banned Phrases
 | Banned | Use Instead |
@@ -55,7 +55,7 @@ P8, P13, P16, P22, P27, P32 — STOP, write all pending observations, update D2:
 
 ## 1. Phase Gates
 
-Hard write gates exist at the end of these phases: **P8, P13, P16, P22, P27, P32**.
+Hard write gates exist at the end of these phases: **P8, P13, P16, P22, P27, P31**.
 
 At each gate you MUST:
 
@@ -84,8 +84,7 @@ At each gate, verify:
 ☐ Entry IDs are sequential and no IDs are skipped
 ☐ No entry contains banned phrases (see Quick Reference above)
 ☐ For each entry: all core fields present; conditional fields filled if first-of-type or 10-entry gap
-☐ Re-read the next phase section in the appropriate priority-queue
-  reference file (prehalt for phases 0–2, posthalt for phases 3–8)
+☐ Re-read the next gate file (see SKILL.md → Reference Files for the phase-to-file map)
   BEFORE writing the first entry of that phase
 ```
 
@@ -131,13 +130,13 @@ Read ALL reference files once at investigation start (Phase 0). After that, re-r
 
 | When | What to Re-Read | Why |
 |------|-----------------|-----|
-| At each phase gate (P8, P13, P16, P22, P27, P32) | This file → Quick Reference + §1 Phase Gates | Checklist reminder before writing |
+| At each phase gate (P8, P13, P16, P22, P27, P31) | This file → Quick Reference + §1 Phase Gates | Checklist reminder before writing |
 | At each phase gate | This file → §9 Mandatory D1 Phase Summaries | Format reminder for D1 writing |
 | Before writing an entry type you haven't written in the last 5 entries | `references/log-format.md` → section for that entry type | Ensure entry matches the spec |
 | Before writing an entry type for the FIRST time | `references/log-format.md` → section for that entry type | Full spec compliance on first use |
 | At each gate: "Any entry types I've written fewer than 3 times this investigation?" | Re-read those log-format.md sections now | Reinforce rare entry format |
 | When D2:State shows context_risk: MEDIUM/HIGH | `s1_log.md` (D2 + relevant D1) | Recover from context loss |
-| Before Phase 4 (deep exploration) | `references/priority-queue-posthalt.md` §Phase 4 | Deep exploration steps are conditional — re-read to know which apply |
+| Before Phase 4 (deep exploration) | `references/gates/gate-4-exploration.md` | Deep exploration steps are conditional — re-read to know which apply |
 | When entering Phase 5 (request replay) | `references/log-format.md` → REQUEST type | Replay entries require complete req_headers/res_headers |
 | After investigation completes | `references/compaction.md` | Compaction procedure for final log |
 
@@ -200,7 +199,16 @@ Work on one phase at a time. Do not:
 
 When moving from one phase to the next:
 1. Complete the current phase gate (see §1).
-2. Re-read the next phase section: `references/priority-queue-prehalt.md` for phases 0–2, or `references/priority-queue-posthalt.md` for phases 3–8. This is mandatory, even if you have read it before.
+2. Re-read the next gate file (see SKILL.md → Reference Files for the phase-to-file map). This is mandatory, even if you have read it before.
+
+   | Transition | Read This File |
+   |------------|---------------|
+   | Starting investigation → Phase 0 | `references/gates/gate-1-baseline.md` |
+   | Gate 1 (P8) → Phase 2 | `references/gates/gate-2-pagination.md` |
+   | Gate 2 (P13) + operator resumes → Phase 3 | `references/gates/gate-3-inspection.md` |
+   | Gate 3 (P16) → Phase 4 | `references/gates/gate-4-exploration.md` |
+   | Gate 4 (P22) → Phase 5 | `references/gates/gate-5-replay.md` |
+   | Gate 5 (P27) → Phase 6 | `references/gates/gate-6-edgecases.md` |
 3. Then begin the new phase.
 
 Do not "preview" the next phase while still completing the current one. This leads to premature observations that may be wrong because the current phase hasn't established the necessary context.
@@ -331,7 +339,7 @@ This 7-point check takes seconds but catches the most common log quality failure
 
 ## 9. Mandatory D1 Phase Summaries
 
-At EVERY phase gate (P8, P13, P16, P22, P27, P32), BEFORE proceeding to the next phase, write a D1 section summarizing the completed phase. Format:
+At EVERY phase gate (P8, P13, P16, P22, P27, P31), BEFORE proceeding to the next phase, write a D1 section summarizing the completed phase. Format:
 
 ```
 ## D1: {Phase Name} (P{start}-P{end})

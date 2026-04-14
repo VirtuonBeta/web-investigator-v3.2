@@ -35,7 +35,7 @@ For each content item field, classify its extraction path type. This classificat
 
 Fields with only `class_hashed` paths are flagged as `[brittle]`. Fields with NO column showing "universal" in the stability matrix are `stability_risk: HIGH`.
 
-This taxonomy is referenced by: P3 (initial extraction tagging), P5 (field-to-path mapping), P15 (detail page mapping), P22 (stability matrix). All extraction path references in the priority-queue files point to this canonical definition.
+This taxonomy is referenced by: P3 (initial extraction tagging), P5 (field-to-path mapping), P15 (detail page mapping), P22 (stability matrix). All extraction path references in the gate files point to this canonical definition.
 
 ---
 
@@ -137,7 +137,7 @@ notes:                Card layout uses hashed Tailwind classes; data-attribute s
 | `id` | string | `ent_NNN` or `ent_auto_NNN` |
 | `phase` | integer | Phase number |
 | `source` | enum | `cdp_passive` \| `agent_active` \| `system` |
-| `context` | enum | `initial_load` \| `post_pagination_N` \| `content_entry_N` \| `article_entry_N` \| `mobile_viewport` \| `pagination_mechanism_identification` \| `content_structure` \| `page_chrome` \| `window_globals` \| `embedded_json_N` \| `raw_html_sample` \| `service_workers` \| `framework_fingerprint` \| `analytics_payload` \| `timestamp_comparison` \| `url_type_analysis` \| `duplicate_detection` \| `encoding_check` \| `compression_check` \| `fingerprinting` \| `head_analysis` \| `csp_analysis` \| `shadow_dom_content` \| `shadow_dom_closed` \| `spa_state_change` \| `a_b_compare` \| `hidden_content_revealed` \| `stability_matrix` \| `custom` |
+| `context` | enum | `initial_load` \| `post_pagination_N` \| `content_entry_N` \| `article_entry_N` \| `pagination_mechanism_identification` \| `content_structure` \| `page_chrome` \| `window_globals` \| `embedded_json_N` \| `raw_html_sample` \| `service_workers` \| `framework_fingerprint` \| `analytics_payload` \| `timestamp_comparison` \| `url_type_analysis` \| `duplicate_detection` \| `encoding_check` \| `compression_check` \| `fingerprinting` \| `head_analysis` \| `csp_analysis` \| `shadow_dom_content` \| `shadow_dom_closed` \| `spa_state_change` \| `a_b_compare` \| `hidden_content_revealed` \| `stability_matrix` \| `custom` |
 | `render_type` | enum | `SSR` \| `CSR` \| `hybrid` \| `RSC` \| `UNKNOWN` \| `N/A` |
 | `embedded_data_blocks` | array | Objects with `selector`, `format`, `size_estimate` |
 | `article_count_visible` | integer \| null | Number of visible content items |
@@ -280,7 +280,7 @@ anomalies:            ["Rate limit returns JSON error body instead of HTML"]
 | `id` | string | `ent_NNN` or `ent_auto_NNN` |
 | `phase` | integer | Phase number |
 | `source` | enum | `cdp_passive` \| `agent_active` \| `system` |
-| `test_id` | enum | `ECT_001` \| `ECT_002` \| `RATE_LIMIT_DETECTED` \| `CONSENT_BANNER` \| `CONSENT_REDIRECT` \| `PAYWALL_DETECTED` \| `MOBILE_VIEWPORT` \| `UA_TEST` \| `COOKIE_TEST` \| `PAGINATION_REPLAY` \| `CAPTCHA_DETECTED` \| `BLOCKER` \| `I18N_TEST` \| `TOKEN_ROTATION_TEST` \| `WARM_UP_COMPARE` \| `SPA_ROUTE_TEST` \| `CROSS_ORIGIN_IFRAME_TEST` \| `RSC_DETECTED` \| `THIRD_PARTY_CMS_API` \| `CMS_API_AUTH_DETECTED` \| `UA_TEST_SKIPPED_ROBOTS_TXT` \| `WAF_CHALLENGE_DETECTED` \| `SHADOW_DOM_DETECTED` \| `INTERSECTION_OBSERVER_DETECTED` \| `NON_HTTP_REPLAY_FAILURE` \| `HIDDEN_CONTENT_REVEALED` \| `SSR_API_SOURCE_OVERLAP` \| `SITEMAP_HIDDEN_STRUCTURE` \| `DEEP_WEB_ENDPOINT_FOUND` \| `SEARCH_FORM_NAVIGATION` \| `CRAWL_TRAP_DETECTED` \| `CUSTOM` |
+| `test_id` | enum | `ECT_001` \| `ECT_002` \| `RATE_LIMIT_DETECTED` \| `CONSENT_BANNER` \| `CONSENT_REDIRECT` \| `PAYWALL_DETECTED` \| `UA_TEST` \| `COOKIE_TEST` \| `PAGINATION_REPLAY` \| `CAPTCHA_DETECTED` \| `BLOCKER` \| `I18N_TEST` \| `TOKEN_ROTATION_TEST` \| `WARM_UP_COMPARE` \| `SPA_ROUTE_TEST` \| `CROSS_ORIGIN_IFRAME_TEST` \| `RSC_DETECTED` \| `THIRD_PARTY_CMS_API` \| `CMS_API_AUTH_DETECTED` \| `UA_TEST_SKIPPED_ROBOTS_TXT` \| `WAF_CHALLENGE_DETECTED` \| `SHADOW_DOM_DETECTED` \| `INTERSECTION_OBSERVER_DETECTED` \| `NON_HTTP_REPLAY_FAILURE` \| `HIDDEN_CONTENT_REVEALED` \| `SSR_API_SOURCE_OVERLAP` \| `SITEMAP_HIDDEN_STRUCTURE` \| `DEEP_WEB_ENDPOINT_FOUND` \| `SEARCH_FORM_NAVIGATION` \| `CRAWL_TRAP_DETECTED` \| `CUSTOM` |
 | `description` | string | What the test does |
 | `method` | enum | `http_raw_request` \| `browser_click` \| `browser_resize_viewport` \| `browser_navigate` \| `browser_execute_js` \| `rapid_fire_test` \| `wait_then_retry` \| `dom_query` \| `dom_query_scan` \| `scroll` \| `custom` |
 | `url` | string \| null | URL tested, if applicable |
@@ -529,15 +529,15 @@ Priority queue step → Phase number:
 
 | Priority Queue Steps | Phase | Description | Reference File |
 |---|---|---|---|
-| Pre-Brief | 0 | Full site brief ingestion | prehalt |
-| P1 | 0 | Pre-flight | prehalt |
-| P2–P8 | 1 | Baseline | prehalt |
-| P9–P13 | 2 | Content discovery | prehalt |
-| P14–P16 | 3 | Content item inspection | posthalt |
-| P17–P22 | 4 | Deep exploration | posthalt |
-| P23–P27 | 5 | Request replay | posthalt |
-| P28–P32 | 6 | Edge case battery | posthalt |
-| P33+ | 7 | Re-investigation | posthalt |
+| Pre-Brief | 0 | Full site brief ingestion | gate-1 |
+| P1 | 0 | Pre-flight | gate-1 |
+| P2–P8 | 1 | Baseline | gate-1 |
+| P9–P13 | 2 | Content discovery | gate-2 |
+| P14–P16 | 3 | Content item inspection | gate-3 |
+| P17–P22 | 4 | Deep exploration | gate-4 |
+| P23–P27 | 5 | Request replay | gate-5 |
+| P28–P31 | 6 | Edge case battery | gate-6 |
+| P32+ | 7 | Re-investigation | gate-6 |
 
 ---
 
