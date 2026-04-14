@@ -180,6 +180,36 @@ When resuming after context loss, read in this EXACT order:
 
 Total recovery cost: ~200-400 tokens for steps 1-2. Step 3 adds ~100-300 tokens. Step 4 on demand only.
 
+### Context Maintenance Trigger
+
+```yaml
+trigger: every 6 decision cycles
+mechanical: true  # no self-assessment; do it regardless
+cycles: [6, 12, 18, 24, 30, 36, 42, 48, 54, 60]
+```
+
+At each trigger:
+1. Re-read last D2:State in `state.log`
+2. Re-read most recent D1 phase summary in `state.log`
+3. Verify: next planned action aligns with D2:State and site_brief?
+
+Decision cycle = agent chose a non-obvious action (probing, testing, changing direction). NOT decision cycles: passive captures, routine BUDGET_STATUS, automatic SYSTEM entries. Cost: ~200 tokens every 6 cycles.
+
+### Phase Discipline
+
+- One phase at a time. No skipping ahead. No mixing phases.
+- No revisiting completed phases unless operator instructs.
+- Complete current gate, then re-read next gate file (mandatory even if read before). No previewing next phase while completing current.
+
+| Transition | Read |
+|------------|------|
+| Start → Phase 0 | gate-1-baseline.md |
+| P8 → Phase 2 | gate-2-pagination.md |
+| P13 + operator resumes → Phase 3 | gate-3-inspection.md |
+| P16 → Phase 4 | gate-4-exploration.md |
+| P22 → Phase 5 | gate-5-replay.md |
+| P27 → Phase 6 | gate-6-edgecases.md |
+
 ### Re-Investigation (Round 2+)
 
 If `s2_gaps.md` is provided:
@@ -386,18 +416,11 @@ FIRST-PASS HALT (after P13 completes):
 
 ## Writing & Discipline Rules
 
-These rules are critical for log quality and agent reliability. They are detailed in `references/writing-protocol.md`:
+Writing discipline rules are in `references/writing-protocol.md`:
 
-- **Phase Gates** — hard write gates at P8, P13, P16, P22, P27, P31. You MUST write before proceeding.
-- **Output Channel Discipline** — chat is for coordination only; all observations go to gate D0 files, all state to state.log.
-- **Reference Read Schedule** — gate-based re-reads of reference files (see writing-protocol.md §3).
-- **Context Maintenance Trigger** — mechanical re-read of state.log every 6 decision cycles.
-- **Back-Edit Protection** — all files are append-only; errata require a cited raw observation.
-- **Banned Phrases** — words that indicate analysis leaking into observations.
-- **Phase Discipline (Stay in Your Lane)** — do not skip ahead or work on multiple phases simultaneously.
-- **Cycle Accounting** — how to count and report decision cycles.
-- **Quick-Write Stubs** — write stub entries at gates, expand them later.
-- **Observation Protocol** — self-check after writing each entry.
+- **Gate Procedure** — hard write gates at P8, P13, P16, P22, P27, P31. D1 format, BUDGET_STATUS rules, gate checklist.
+- **Entry Rules** — output channels, self-check, banned phrases, cycle accounting, stub pattern.
+- **Corrections** — errata format and back-edit protection.
 
 ---
 
@@ -407,7 +430,7 @@ The detailed procedures live in reference files. Read them when you need the HOW
 
 | File | Content | When to Read |
 |------|---------|-------------|
-| `references/writing-protocol.md` | Phase gates, output channel discipline, reference read schedule, banned phrases, cycle accounting, quick-write stubs, observation protocol | Before starting the investigation AND at each phase gate |
+| `references/writing-protocol.md` | Gate procedure (D1 format, BUDGET_STATUS), entry rules (channels, self-check, banned phrases, cycle accounting, stubs), corrections (errata) | Before starting the investigation AND at each phase gate |
 | `references/gates/gate-1-baseline.md` | Detailed P0–P8a steps — pre-flight, CDP setup, DOM, globals, cookies, robots | Before starting investigation + before Phase 0–1 |
 | `references/gates/gate-2-pagination.md` | Detailed P9–P13c steps — content structure, pagination, search forms | After Gate 1 (P8) + before Phase 2 |
 | `references/gates/gate-3-inspection.md` | Detailed P14–P16b steps — content item entry, extraction maps, hidden content | After operator resumes + before Phase 3 |
