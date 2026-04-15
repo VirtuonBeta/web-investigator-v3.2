@@ -98,6 +98,28 @@ if_you_catch_yourself_writing: "next I should..." or "recommended:"
 then: that content belongs in D2:State (Next_steps field), not in a D0 entry
 ```
 
+#### Split Example: Observation vs Plan
+
+When a D0 notes field contains both an observation and a plan, split them. Keep the observation in D0, move the plan to D2.
+
+```yaml
+bad_D0_notes: |
+  "NCP API not viable for raw HTTP replay — body schema unknown.
+  Primary extraction strategy: Raw HTTP GET for main page (titles + URLs),
+  then browser or JS for dates. Two-phase extraction: Phase 1 needs browser
+  for dates. Phase 2 still required for body/author."
+
+good_D0_notes: |
+  "NCP endpoint returns 400 for empty body — requires specific request body
+  schema not captured. SSR page contains all initial article links but
+  published dates are CSR-only (2/153 date spans in SSR HTML)."
+
+good_D2_Next_steps: |
+  "1. Attempt NCP body schema capture via browser JS interception
+   2. Test if raw HTTP GET of main page provides sufficient titles + URLs
+   3. Verify date extraction requires browser rendering"
+```
+
 ---
 
 ## 2. Entry Types

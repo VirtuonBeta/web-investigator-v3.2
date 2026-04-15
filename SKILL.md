@@ -189,10 +189,16 @@ Do NOT batch-write. Write at triggers.
 
 ```yaml
 mid_gate_D0_writes:
-  rule: "Write D0 entries 2-4 times per gate, even though it slows you down"
-  reason: "if context resets, unwritten observations are permanently lost — batch-writing at gate end defeats the purpose of incremental logging"
-  trigger: "after every 3-5 decision cycles within a gate, write accumulated observations to the gate D0 file"
-  enforcement: "If you catch yourself writing all D0 entries at the gate boundary, you have already lost intermediate data. Write earlier."
+  rule: "Write D0 entries 2 times per gate at specific high-density phase steps, plus once at gate end"
+  reason: "these steps produce the densest observations — if context resets before writing, that data is irrecoverable"
+  schedule:
+    gate_1: [after_P5, after_P7]     # P5=extraction map; P7=cookie dependency map
+    gate_2: [after_P9a, after_P11]    # P9a=IO detection+endpoints; P11=depth probing
+    gate_3: [after_P15, after_P16b]   # P15=detail page extraction map; P16b=verification
+    gate_4: [after_P17, after_P22]    # P17=API probing; P22=stability matrix
+    gate_5: [after_P24, after_P27]    # P24=cookie-removal; P27=HTTP_REQUEST_CHAIN
+    gate_6: [after_P30, after_P31]    # P30=sponsored content; P31=rate limit+final budget
+  enforcement: "At each scheduled step, write accumulated observations to the gate D0 file BEFORE proceeding to the next phase step. These are the moments of highest observation density — missing them risks irrecoverable data loss on context reset."
 ```
 
 ### Context Maintenance

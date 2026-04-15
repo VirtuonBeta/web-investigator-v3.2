@@ -65,7 +65,7 @@ Fields that were not checked during this gate use `null`. Fields checked but not
 
 ```
 ☐ All D0 observations logged as typed entries in gate D0 file
-☐ D0 entries written 2-4 times during gate (not all batched at end)
+☐ D0 entries written at 2 scheduled high-density steps per gate (see SKILL.md mid_gate_D0_writes schedule)
 ☐ D0 contains NO forward-looking content (no next steps, plans, conclusions)
 ☐ D2:State replaced at top of state.log (structured YAML with all fields)
 ☐ D1 Phase Summary inserted above previous D1 (ents: range + structured fields included)

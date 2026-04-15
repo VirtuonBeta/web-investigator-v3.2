@@ -70,6 +70,7 @@ You are checking GATE {N} output against the framework spec. Focus on:
 - Conditional fields filled when required (first-of-type or 10-entry gap)
 - No banned phrases (see writing-protocol.md Banned Phrases table)
 - D0 contains ONLY raw observations — no next steps, no plans, no conclusions, no forward-looking statements
+- EDGE_CASE_TEST entries use a test_id from the allowed enum in log-format.md. CUSTOM is valid for non-standard tests. Non-enum values (e.g., "pagination_depth_probing", "INTERSECTION_OBSERVER_DETECTED") are FORMAT violations — use CUSTOM with the test name in description instead.
 - D1 summary present with correct ents: range
 - D2:State present at top of state.log with all required fields
 
@@ -83,6 +84,7 @@ You are checking GATE {N} output against the framework spec. Focus on:
 - Dead ends in D2:State have evidence references
 - D1 summary references specific gN:NNN IDs with concrete details
 - The gate's phases (P{start}-P{end}) are actually covered — no major phase steps skipped
+- Forward-looking content detection: scan D0 notes fields for strategy recommendations ("Primary extraction strategy: ..."), next steps ("needs further probing (P10-P11)"), or plans ("Phase 1 needs browser for dates"). The observation behind the plan is valid D0; the plan itself belongs in D2:State. Flag each instance.
 
 ### C. Observation Density
 - Minimum entry count expectations:
@@ -195,7 +197,8 @@ FORMAT:
 ☐ Core fields present per entry type
 ☐ Conditional fields filled when required
 ☐ No banned phrases
-☐ D0 has no forward-looking content
+☐ D0 has no forward-looking content (strategy, plans, next steps)
+☐ EDGE_CASE_TEST test_id values are from the allowed enum (CUSTOM for non-standard)
 ☐ D1 has ents: range
 ☐ D2:State has all required fields
 
