@@ -189,16 +189,16 @@ Do NOT batch-write. Write at triggers.
 
 ```yaml
 mid_gate_D0_writes:
-  rule: "Write D0 entries 2 times per gate at specific high-density phase steps, plus once at gate end"
+  rule: "Write D0 entries at specific high-density phase steps per gate, plus once at gate end (3 writes total per gate)"
   reason: "these steps produce the densest observations — if context resets before writing, that data is irrecoverable"
   schedule:
-    gate_1: [after_P5, after_P7]     # P5=extraction map; P7=cookie dependency map
-    gate_2: [after_P9a, after_P11]    # P9a=IO detection+endpoints; P11=depth probing
-    gate_3: [after_P15, after_P16b]   # P15=detail page extraction map; P16b=verification
-    gate_4: [after_P17, after_P22]    # P17=API probing; P22=stability matrix
-    gate_5: [after_P24, after_P27]    # P24=cookie-removal; P27=HTTP_REQUEST_CHAIN
-    gate_6: [after_P30, after_P31]    # P30=sponsored content; P31=rate limit+final budget
-  enforcement: "At each scheduled step, write accumulated observations to the gate D0 file BEFORE proceeding to the next phase step. These are the moments of highest observation density — missing them risks irrecoverable data loss on context reset."
+    gate_1: [after_P5, after_P7, gate_end]     # P5=extraction map; P7=cookie dependency map; gate_end=final flush
+    gate_2: [after_P9a, after_P11, gate_end]    # P9a=IO detection+endpoints; P11=depth probing; gate_end=final flush
+    gate_3: [after_P15, after_P16b, gate_end]   # P15=detail page extraction map; P16b=verification; gate_end=final flush
+    gate_4: [after_P17, after_P22, gate_end]    # P17=API probing; P22=stability matrix; gate_end=final flush
+    gate_5: [after_P24, after_P27, gate_end]    # P24=cookie-removal; P27=HTTP_REQUEST_CHAIN; gate_end=final flush
+    gate_6: [after_P30, after_P31, gate_end]    # P30=sponsored content; P31=rate limit+final budget; gate_end=final flush
+  enforcement: "At each scheduled step (including gate_end), write accumulated observations to the gate D0 file BEFORE proceeding. gate_end is a final flush — any observations not yet written must be written here before D1/D2. Missing these moments risks irrecoverable data loss on context reset."
 ```
 
 ### Context Maintenance
