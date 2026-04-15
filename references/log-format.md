@@ -62,6 +62,42 @@ All entries include these fields. Not repeated in per-type tables.
 
 Fill conditional fields if ANY of: first entry of this type, gap of 10+ entries since last of this type, field has non-null/interesting data.
 
+### Null Convention
+
+```yaml
+null: "checked this field, found nothing (e.g., no cookies, no API endpoints)"
+null_not_checked: "did not check this field (e.g., not relevant to current phase, ran out of time)"
+
+rules:
+  - Always distinguish between looked-and-found-nothing (null) and didn't-look (null_not_checked)
+  - null is an observation: you checked, nothing was there
+  - null_not_checked is a signal: this field remains unexplored
+  - The review sub-agent uses this distinction to identify INCOMPLETE_INVESTIGATION
+  - Never leave a field empty/missing — use null or null_not_checked explicitly
+```
+
+### D0 Content Restriction
+
+D0 entries contain ONLY raw observations. No forward-looking content.
+
+```yaml
+allowed_in_D0:
+  - what you saw (raw data, DOM state, HTTP responses)
+  - what happened (navigation, clicks, errors)
+  - measurements (sizes, counts, timings)
+
+forbidden_in_D0:
+  - next_steps / what_to_do_next / "next I should..."
+  - recommendations / reinvestigation_recommendations
+  - planning / selection_strategy / "recommended: P13b"
+  - conclusions / analysis / "therefore" / "this means" / "this suggests"
+  - ANSWERED / PARTIALLY_ANSWERED status on questions
+  - any forward-looking statement of any kind
+
+if_you_catch_yourself_writing: "next I should..." or "recommended:"
+then: that content belongs in D2:State (Next_steps field), not in a D0 entry
+```
+
 ---
 
 ## 2. Entry Types

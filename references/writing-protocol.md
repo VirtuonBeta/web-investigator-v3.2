@@ -18,11 +18,15 @@ action: STOP
 At each gate, execute in order:
 
 1. Write all pending observations → current gate D0 file (`g{N}d0.log`) as typed entries
-2. Replace D2:State → top of `state.log` (current phase, findings, dead ends, budget, `current_d0`)
+2. Replace D2:State → top of `state.log` (structured YAML: Phase, Gate, Findings, Dead_ends, Open, Next_steps, Budget, current_d0, Last_checkpoint)
 3. Write D1 Phase Summary → `state.log`, inserted ABOVE previous D1 (bottom-up ordering)
 4. Write BUDGET_STATUS → current gate D0 file (P8, P13, P16 only; other gates only if budget changed significantly)
+5. **HARD_STOP** — think explicitly: "I am at gate {N}, my files are g{N}d0.log and state.log"
+6. Spawn review sub-agent → references/gate-review.md prompt template
+7. Handle review result (PASS → operator halt; FAIL → fix → re-review; max 2 attempts)
+8. Wait for operator to explicitly say "continue" before proceeding to next gate
 
-Skipping a gate violates the output contract. No exceptions.
+Skipping a gate violates the output contract. No exceptions. The review sub-agent is NOT optional.
 
 ### D1 Format
 
@@ -35,11 +39,21 @@ location: state.log
 ```
 ## D1: {Phase Name} (P{start}-P{end}) | ents: g{N}:{first}-g{N}:{last}
 
-{2-5 sentence summary: key findings, dead ends, open questions.
-Include gN:NNN references for most important observations.}
+rendering: {SSR|CSR|hybrid|RSC|UNKNOWN}
+data_sources: [{source}, ...]  # e.g., ["__NEXT_DATA__", "ld+json", "API fetch"]
+api_endpoints: [{count} found | null]  # null if not checked this gate
+cookies: {count} observed | null
+sitemap: {found|not_found|null}
+consent: {none|banner_handled|platform_name|null}
+key_selectors: [root, card, ... | null]
+dead_ends: [{description} (gN:NNN ✗) | none]
+open: [{unresolved question} | none]
+budget_at_gate: {cycles_used}/{total}
 ```
 
 `ents:` is the index — `ents: g1:001-g1:011` means "open g1d0.log, entries g1:001 through g1:011." Insert new D1 ABOVE previous D1. Most recent phase = first D1 after D2:State.
+
+Fields that were not checked during this gate use `null`. Fields checked but nothing found use `none` or `0 found` as appropriate.
 
 ### BUDGET_STATUS at Gates
 
@@ -51,11 +65,18 @@ Include gN:NNN references for most important observations.}
 
 ```
 ☐ All D0 observations logged as typed entries in gate D0 file
-☐ D2:State replaced at top of state.log
-☐ D1 Phase Summary inserted above previous D1 (ents: range included)
+☐ D0 entries written 2-4 times during gate (not all batched at end)
+☐ D0 contains NO forward-looking content (no next steps, plans, conclusions)
+☐ D2:State replaced at top of state.log (structured YAML with all fields)
+☐ D1 Phase Summary inserted above previous D1 (ents: range + structured fields included)
 ☐ BUDGET_STATUS appended to gate D0 file (P8, P13, P16)
 ☐ No banned phrases in any entry
 ☐ Core fields present; conditional fields filled if first-of-type or 10-entry gap
+☐ Null convention followed: null = checked nothing found, null_not_checked = didn't check
+☐ HARD_STOP: explicitly identified gate number and file names
+☐ Review sub-agent spawned and result handled
+☐ Operator approval received before proceeding
+☐ Re-read writing-protocol.md and log-format.md at gate boundary
 ☐ Re-read next gate file BEFORE first entry of next phase
 ```
 

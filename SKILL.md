@@ -29,9 +29,9 @@ Recovery cost: ~400 tokens (steps 1-3). Step 4 adds ~200. Step 5 on demand only.
 
 ```yaml
 mandatory_reread:
-  rule: "Re-read references/writing-protocol.md and references/log-format.md at EVERY bootstrap, even if you believe they are in context"
-  reason: "context window mutation may have evicted earlier reads; stale format rules cause cascading spec violations"
-  enforcement: "if you skip a bootstrap step, you risk writing entries that violate the spec"
+  rule: "Re-read references/writing-protocol.md and references/log-format.md at EVERY bootstrap and EVERY gate boundary, even if you believe they are in context"
+  reason: "context window mutation may have evicted earlier reads; stale format rules cause cascading spec violations; even though you remember them, we need them at the top of your context window"
+  enforcement: "if you skip a bootstrap step, you risk writing entries that violate the spec; rereading costs ~400 tokens, fixing spec violations costs 10x that"
 ```
 
 ### Step 2b: Fresh Start (state.log DOES NOT EXIST)
@@ -77,16 +77,18 @@ layers:
   D2_State:
     location: "TOP of state.log"
     action: "REPLACE at every trigger (never append)"
+    format: "structured YAML (not free-form text)"
     fields:
       Phase: "current priority queue step"
-      Key: "top 3-5 findings so far"
-      Dead_ends: "ruled-out paths (with ✗)"
+      Gate: "current gate number (1-6)"
+      Findings: "list of top 3-5 findings with brief evidence (e.g., 'API at /v2/articles returns JSON with pagination — g1:007')"
+      Dead_ends: "list of ruled-out paths with evidence refs (e.g., 'No GraphQL endpoint — g1:012 ✗')"
       Open: "unresolved questions + unanswered site_brief items"
-      Unexplored: "unfinished investigation areas (moved from BUDGET_STATUS)"
-      Next: "what to do next (moved from BUDGET_STATUS remaining_unexplored/reinvestigation_recommendations)"
+      Next_steps: "what to do next (1-3 concrete actions, not vague)"
       Budget: "cycles used / total"
       current_d0: "which gate D0 file to write to (e.g., g4d0.log)"
       Last_checkpoint: "most recent gate"
+    substance_rule: "Count substance not lines. If the checkpoint needs more detail to be useful on recovery, write more. A thin D2 on recovery = blind agent."
   D1_summary:
     location: "state.log (below D2)"
     ordering: "bottom-up (newest above oldest)"
@@ -138,6 +140,7 @@ forbidden_in_D0:
   - planning / selection_strategy
   - ANSWERED / PARTIALLY_ANSWERED status on questions
   - forward-looking statements of any kind
+  - conclusions / analysis / "therefore" / "this means"
 
 if_you_catch_yourself_writing: "next I should..." or "recommended: P13b"
 then: that content belongs in D2:State (Open field), not in a D0 entry
@@ -173,7 +176,8 @@ Gate-qualified: `gN:NNN` (e.g., `g2:014` → open `g2d0.log`, find entry 014). S
 
 | Trigger | Write | File |
 |---------|-------|------|
-| Phase gate (P8, P13, P16, P22, P27, P31) | D2:State + D1 if phase complete | state.log |
+| Phase gate (P8, P13, P16, P22, P27, P31) | D2:State + D1 + gate review → operator halt | state.log + review |
+| Mid-gate observation burst (2-4x per gate) | D0 entries + D2:State | current gate D0 + state.log |
 | Context pressure | D2:State | state.log |
 | BLOCKER or discovery | D0 entry immediately | current gate D0 |
 | Budget checkpoint (P8, P13, P16) | BUDGET_STATUS | current gate D0 |
@@ -182,6 +186,14 @@ Gate-qualified: `gN:NNN` (e.g., `g2:014` → open `g2d0.log`, find entry 014). S
 | Any observation | Typed entry | current gate D0 |
 
 Do NOT batch-write. Write at triggers.
+
+```yaml
+mid_gate_D0_writes:
+  rule: "Write D0 entries 2-4 times per gate, even though it slows you down"
+  reason: "if context resets, unwritten observations are permanently lost — batch-writing at gate end defeats the purpose of incremental logging"
+  trigger: "after every 3-5 decision cycles within a gate, write accumulated observations to the gate D0 file"
+  enforcement: "If you catch yourself writing all D0 entries at the gate boundary, you have already lost intermediate data. Write earlier."
+```
 
 ### Context Maintenance
 
@@ -217,19 +229,25 @@ rules:
 | P27 → P28 | `references/gates/gate-6-edgecases.md` |
 | P32+ complete | `references/compaction.md` |
 
-### First-Pass Halt
+### Gate Review & Operator Halt
 
 ```yaml
-after: "P1-P8 (baseline) + P9-P13 (content discovery)"
-actions:
-  - write BUDGET_STATUS to current gate D0
-  - write SYSTEM entry: INVESTIGATION_FIRST_PASS_COMPLETE
-  - output: "First pass complete. [files]. Budget remaining: {R}. Key findings: {3-5}. Next: [item entry] [exploration] [replay] [edge cases]. Awaiting instruction."
-  - STOP; do NOT proceed unless operator says continue
-  - when resuming: read references/gates/gate-3-inspection.md
+after: "every gate boundary (P8, P13, P16, P22, P27, P31)"
+procedure:
+  step_1_write: "Complete all D0, D1, D2 writes for the gate"
+  step_2_identify: "Think explicitly: which gate am I at? what are my file names? (g{N}d0.log, state.log)"
+  step_3_spawn_review: "Spawn review sub-agent via Task tool with gate-review.md prompt template (→ references/gate-review.md)"
+  step_4_handle_result:
+    if_PASS: "Log to chat: 'Gate {N} review: PASS (score). Awaiting operator review.' STOP. Wait for operator to say continue."
+    if_FAIL: "Apply structured feedback fixes. Update D2+D1 if needed. Increment review_attempt. Re-spawn review."
+  step_5_loop_closure:
+    max_attempts: 2
+    on_max: "Halt for operator regardless. 'Gate {N}: max review attempts reached. Awaiting operator decision.'"
+  step_6_operator_resume: "When operator says continue → re-read next gate file, then begin next phase"
+operator_halt: "mandatory at EVERY gate after sub-agent PASS"
 exceptions:
   - re-investigation with s2_gaps.md provided
-  - operator says "continue investigation" or "run full investigation"
+  - operator says "continue investigation" or "run full investigation" or "skip review"
 ```
 
 ### Re-Investigation (Round 2+)
@@ -355,6 +373,9 @@ forbidden:
   - name files anything other than state.log and g{N}d0.log
   - use chat as observation channel  # → references/writing-protocol.md
   - write typed entries (BUDGET_STATUS, SYSTEM, etc.) to state.log
+  - write next steps/plans/conclusions in D0 entries
+  - proceed past a gate boundary without review + operator approval
+  - skip the gate review sub-agent spawn
 ```
 
 ---
@@ -387,5 +408,6 @@ justification: "every unnecessary file read wastes ~200-500 tokens and risks con
 | `references/gates/gate-6-edgecases.md` | P28-P32+ steps | After P27 or recovery step |
 | `references/cdp-infrastructure.md` | CDP setup, capture filter, volume management | **Gate 1** (Phase 0 setup) + **on-demand** (CDP errors) |
 | `references/compaction.md` | Post-investigation dedup and cleanup | **After gate 6** (terminal) |
+| `references/gate-review.md` | Gate review protocol, sub-agent prompt template, quality checklist | **Read by review sub-agent** at every gate boundary |
 
 This table is the complete list of files the agent is authorized to read. If a file is not in this table, do not read it.
