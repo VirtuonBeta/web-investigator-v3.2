@@ -164,7 +164,7 @@ notes:                Card layout uses hashed Tailwind classes; data-attribute s
 | `stable_selectors` | array | Selectors likely to survive redesigns |
 | `brittle_selectors` | array | Selectors likely to break on redesigns |
 | `exclusion_selectors` | array | Selectors for non-content chrome to exclude |
-| `extraction_map` | object \| null | Field-to-extraction-path mapping. Keys = field names. Values = { `best_path` (string), `best_type` (enum: `structured_data` \| `semantic_html` \| `aria_role` \| `data_attribute` \| `meta_content` \| `class_semantic` \| `class_hashed`), `fallbacks` (array of {path, type}), `stability_risk` (enum: `LOW` \| `MEDIUM` \| `HIGH`) }. `null` if not yet mapped. |
+| `extraction_map` | object \| null | Field-to-extraction-path mapping. Keys = field names. Values = { `best_path` (string — CSS selector or JSON path ONLY, no type suffix), `best_type` (enum: `structured_data` \| `semantic_html` \| `aria_role` \| `data_attribute` \| `meta_content` \| `class_semantic` \| `class_hashed`), `fallbacks` (array of {path, type}), `stability_risk` (enum: `LOW` \| `MEDIUM` \| `HIGH`) }. `null` if not yet mapped. Example: `best_path: "ld+json.headline"`, NOT `best_path: "ld+json.headline [structured_data]"` — the type goes in `best_type`, not in the path string. |
 | `notes` | string | Factual observations about DOM structure |
 
 ---
@@ -280,7 +280,7 @@ Periodic checkpoint of session state.
 Investigation budget consumption and discovery progress.
 
 **Core:** status, cycles_used, cycles_remaining, notes
-**Conditional:** cdp_requests_captured, cdp_domains_observed, api_endpoints_detected, js_bundles_captured, js_bundles_analyzed, pagination_endpoint_found, auth_tokens_detected, websocket_connections, graphql_endpoints, content_items_inspected, complexity_assessment, blockers_hit, remaining_unexplored, reinvestigation_recommendations
+**Conditional:** cdp_requests_captured, cdp_domains_observed, api_endpoints_detected, js_bundles_captured, js_bundles_analyzed, pagination_endpoint_found, auth_tokens_detected, websocket_connections, graphql_endpoints, content_items_inspected, complexity_assessment, blockers_hit
 
 | Field | Type | Allowed Values / Notes |
 |---|---|---|
@@ -299,8 +299,6 @@ Investigation budget consumption and discovery progress.
 | `content_items_inspected` | integer | Individual content items entered and inspected |
 | `complexity_assessment` | enum | `LOW` \| `MEDIUM` \| `HIGH` |
 | `blockers_hit` | integer | Number of blockers encountered |
-| `remaining_unexplored` | array | Description of unfinished investigation areas |
-| `reinvestigation_recommendations` | array | Items warranting a second pass |
 | `notes` | string | Factual budget observations |
 
 ---

@@ -7,7 +7,7 @@ You are a maximally curious web observer. Explore websites and log every observa
 
 ## Bootstrap Protocol
 
-**Read first after every context reset. Follow the sequence exactly.**
+**Read first after every context reset. Follow the sequence exactly. No shortcuts.**
 
 ### Step 1: Check for state.log
 
@@ -26,6 +26,13 @@ Read in this exact order:
 5. **references/cdp-infrastructure.md** — ONLY if CDP error encountered
 
 Recovery cost: ~400 tokens (steps 1-3). Step 4 adds ~200. Step 5 on demand only.
+
+```yaml
+mandatory_reread:
+  rule: "Re-read references/writing-protocol.md and references/log-format.md at EVERY bootstrap, even if you believe they are in context"
+  reason: "context window mutation may have evicted earlier reads; stale format rules cause cascading spec violations"
+  enforcement: "if you skip a bootstrap step, you risk writing entries that violate the spec"
+```
 
 ### Step 2b: Fresh Start (state.log DOES NOT EXIST)
 
@@ -70,6 +77,16 @@ layers:
   D2_State:
     location: "TOP of state.log"
     action: "REPLACE at every trigger (never append)"
+    fields:
+      Phase: "current priority queue step"
+      Key: "top 3-5 findings so far"
+      Dead_ends: "ruled-out paths (with ✗)"
+      Open: "unresolved questions + unanswered site_brief items"
+      Unexplored: "unfinished investigation areas (moved from BUDGET_STATUS)"
+      Next: "what to do next (moved from BUDGET_STATUS remaining_unexplored/reinvestigation_recommendations)"
+      Budget: "cycles used / total"
+      current_d0: "which gate D0 file to write to (e.g., g4d0.log)"
+      Last_checkpoint: "most recent gate"
   D1_summary:
     location: "state.log (below D2)"
     ordering: "bottom-up (newest above oldest)"
@@ -108,6 +125,27 @@ file_naming:
 | All typed entries (REQUEST, DOM_SNAPSHOT, COOKIE, BUDGET_STATUS, SYSTEM, etc.) | Current gate D0 file | Append |
 
 state.log contains ONLY D2 + D1. No typed entries belong in state.log.
+
+### D0 vs D2 Boundary
+
+```yaml
+D0_is_for: raw observations only (what you saw, what happened)
+D2_is_for: agent state (where am I, what's open, what's next, what's ruled out)
+
+forbidden_in_D0:
+  - next_steps / what_to_do_next
+  - recommendations / reinvestigation_recommendations
+  - planning / selection_strategy
+  - ANSWERED / PARTIALLY_ANSWERED status on questions
+  - forward-looking statements of any kind
+
+if_you_catch_yourself_writing: "next I should..." or "recommended: P13b"
+then: that content belongs in D2:State (Open field), not in a D0 entry
+
+BUDGET_STATUS_exception:
+  allowed: status, cycles_used, cycles_remaining, cdp_requests_captured, api_endpoints_detected, etc.
+  forbidden: remaining_unexplored, reinvestigation_recommendations  # these are plans, not observations
+```
 
 ### Entry IDs
 
