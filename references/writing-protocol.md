@@ -157,4 +157,12 @@ Errata = SYSTEM entry with `event: errata`:
 | `corrected_value` | Corrected text |
 | `reason` | MUST include a raw observation supporting the correction |
 
-If you cannot articulate WHY the original was wrong using a specific raw observation → do NOT write errata. Leave the original and add a new observation entry instead.
+### Errata Rules
+
+1. One correction per errata entry. Multiple fields → multiple entries.
+2. `corrects_entry` must use gN:NNN format.
+3. `reason` must include a specific raw observation supporting the correction. (e.g., "Cookie rotates on each request" ✅; "Cookie is clearly a session cookie" ❌)
+4. Original entry unchanged during investigation. Errata applied during compaction (→ references/compaction.md).
+5. Missing required field: include the field's value in `corrected_value`.
+
+If you cannot articulate WHY the original was wrong using a specific raw observation → do NOT write errata. Add a new observation entry instead.
