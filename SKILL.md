@@ -72,12 +72,12 @@ Read **references/compaction.md** — post-investigation dedup and cleanup befor
 
 ```yaml
 rules:
-  atoms_only: "No conclusions, no 'therefore', no recommendations. → writing-protocol.md"
+  atoms_only: "No conclusions, no 'therefore', no recommendations. → references/writing-protocol.md"
   observed_only: "If you observed it, log it. If you didn't, it doesn't exist. No inference."
   unknown_first_class: "Explicit unknown > guessed answer."
   aggressive_but_respectful: "Probe everything, never hammer."
-  log_format_mandatory: "→ log-format.md"
-  incremental_writing: "Write at trigger points, never batch. → writing-protocol.md"
+  log_format_mandatory: "→ references/log-format.md"
+  incremental_writing: "Write at trigger points, never batch. → references/writing-protocol.md"
 ```
 
 ---
@@ -135,7 +135,7 @@ state.log contains ONLY D2 + D1. No typed entries belong in state.log.
 
 ### Entry IDs
 
-Gate-qualified: `gN:NNN` (e.g., `g2:014` → open `g2d0.log`, find entry 014). Self-locating — the gate prefix tells you which file. Full rules: `log-format.md` → ID Format.
+Gate-qualified: `gN:NNN` (e.g., `g2:014` → open `g2d0.log`, find entry 014). Self-locating — the gate prefix tells you which file. Full rules: `references/log-format.md` → ID Format.
 
 ---
 
@@ -143,13 +143,13 @@ Gate-qualified: `gN:NNN` (e.g., `g2:014` → open `g2d0.log`, find entry 014). S
 
 | Phase | Steps | Gate File | D0 File | CDP Read |
 |-------|-------|----------|---------|----------|
-| 0-1: Baseline | P0-P8a | gate-1-baseline.md | g1d0.log | Yes (Phase 0 setup) |
-| 2: Content | P9-P13c | gate-2-pagination.md | g2d0.log | - |
-| 3: Item Entry | P14-P16b | gate-3-inspection.md | g3d0.log | - |
-| 4: Exploration | P17-P22 | gate-4-exploration.md | g4d0.log | On error |
-| 5: Replay | P23-P27 | gate-5-replay.md | g5d0.log | On error |
-| 6: Edge Cases | P28-P32+ | gate-6-edgecases.md | g6d0.log | - |
-| Post-investigation | - | compaction.md | - | - |
+| 0-1: Baseline | P0-P8a | `references/gates/gate-1-baseline.md` | g1d0.log | Yes (Phase 0 setup) |
+| 2: Content | P9-P13c | `references/gates/gate-2-pagination.md` | g2d0.log | - |
+| 3: Item Entry | P14-P16b | `references/gates/gate-3-inspection.md` | g3d0.log | - |
+| 4: Exploration | P17-P22 | `references/gates/gate-4-exploration.md` | g4d0.log | On error |
+| 5: Replay | P23-P27 | `references/gates/gate-5-replay.md` | g5d0.log | On error |
+| 6: Edge Cases | P28-P32+ | `references/gates/gate-6-edgecases.md` | g6d0.log | - |
+| Post-investigation | - | `references/compaction.md` | - | - |
 
 ---
 
@@ -195,13 +195,13 @@ rules:
 
 | Transition | Read Next |
 |------------|-----------|
-| Start → P0 | gate-1-baseline.md + cdp-infrastructure.md |
-| P8 → P9 | gate-2-pagination.md |
-| P13 + operator resumes → P14 | gate-3-inspection.md |
-| P16 → P17 | gate-4-exploration.md |
-| P22 → P23 | gate-5-replay.md |
-| P27 → P28 | gate-6-edgecases.md |
-| P32+ complete | compaction.md |
+| Start → P0 | `references/gates/gate-1-baseline.md` + `references/cdp-infrastructure.md` |
+| P8 → P9 | `references/gates/gate-2-pagination.md` |
+| P13 + operator resumes → P14 | `references/gates/gate-3-inspection.md` |
+| P16 → P17 | `references/gates/gate-4-exploration.md` |
+| P22 → P23 | `references/gates/gate-5-replay.md` |
+| P27 → P28 | `references/gates/gate-6-edgecases.md` |
+| P32+ complete | `references/compaction.md` |
 
 ### First-Pass Halt
 
@@ -212,7 +212,7 @@ actions:
   - write SYSTEM entry: INVESTIGATION_FIRST_PASS_COMPLETE
   - output: "First pass complete. [files]. Budget remaining: {R}. Key findings: {3-5}. Next: [item entry] [exploration] [replay] [edge cases]. Awaiting instruction."
   - STOP; do NOT proceed unless operator says continue
-  - when resuming: read gate-3-inspection.md
+  - when resuming: read references/gates/gate-3-inspection.md
 exceptions:
   - re-investigation with s2_gaps.md provided
   - operator says "continue investigation" or "run full investigation"
@@ -313,7 +313,7 @@ default: 60 decision cycles
 adjustable_via: site_brief.md
 decision_cycle: "one LLM reasoning turn resulting in action"
 cdp_passive: "does NOT consume cycles"
-full_accounting: writing-protocol.md
+full_accounting: references/writing-protocol.md
 allocations:
   content_item_entry: "~3 cycles/item, min 3 items"
   hidden_content_clicks: "max 3 per detail page"
@@ -339,8 +339,22 @@ forbidden:
   - follow links to unrelated domains
   - batch-write the log at the end
   - name files anything other than state.log and g{N}d0.log
-  - use chat as observation channel  # → writing-protocol.md
+  - use chat as observation channel  # → references/writing-protocol.md
   - write typed entries (BUDGET_STATUS, SYSTEM, etc.) to state.log
+```
+
+---
+
+## Read Discipline
+
+```yaml
+rule: "ONLY read files listed in the Reference Files table below, and ONLY at the designated time"
+never_read:
+  - examples/              # operator/analyst reference only; not for agent
+  - README.md              # project documentation; not for agent
+  - gate files not yet reached  # no previewing; read only current gate
+  - completed gate D0 files   # only read via D1 ents: index on demand
+justification: "every unnecessary file read wastes ~200-500 tokens and risks context pollution"
 ```
 
 ---
@@ -349,13 +363,15 @@ forbidden:
 
 | File | Content | Read When |
 |------|---------|-----------|
-| writing-protocol.md | Gate procedure, entry rules, corrections | **Bootstrap step** (every path) |
-| log-format.md | Entry types, field definitions, shared conventions | **Bootstrap step** (every path) |
-| gate-1-baseline.md | P0-P8a steps | **Bootstrap step** (fresh start) or **recovery step** |
-| gate-2-pagination.md | P9-P13c steps | After P8 or recovery step |
-| gate-3-inspection.md | P14-P16b steps | After operator resumes or recovery step |
-| gate-4-exploration.md | P17-P22 steps | After P16 or recovery step |
-| gate-5-replay.md | P23-P27 steps | After P22 or recovery step |
-| gate-6-edgecases.md | P28-P32+ steps | After P27 or recovery step |
-| cdp-infrastructure.md | CDP setup, capture filter, volume management | **Gate 1** (Phase 0 setup) + **on-demand** (CDP errors) |
-| compaction.md | Post-investigation dedup and cleanup | **After gate 6** (terminal) |
+| `references/writing-protocol.md` | Gate procedure, entry rules, corrections | **Bootstrap step** (every path) |
+| `references/log-format.md` | Entry types, field definitions, shared conventions | **Bootstrap step** (every path) |
+| `references/gates/gate-1-baseline.md` | P0-P8a steps | **Bootstrap step** (fresh start) or **recovery step** |
+| `references/gates/gate-2-pagination.md` | P9-P13c steps | After P8 or recovery step |
+| `references/gates/gate-3-inspection.md` | P14-P16b steps | After operator resumes or recovery step |
+| `references/gates/gate-4-exploration.md` | P17-P22 steps | After P16 or recovery step |
+| `references/gates/gate-5-replay.md` | P23-P27 steps | After P22 or recovery step |
+| `references/gates/gate-6-edgecases.md` | P28-P32+ steps | After P27 or recovery step |
+| `references/cdp-infrastructure.md` | CDP setup, capture filter, volume management | **Gate 1** (Phase 0 setup) + **on-demand** (CDP errors) |
+| `references/compaction.md` | Post-investigation dedup and cleanup | **After gate 6** (terminal) |
+
+This table is the complete list of files the agent is authorized to read. If a file is not in this table, do not read it.
