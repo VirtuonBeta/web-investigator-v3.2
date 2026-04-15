@@ -12,7 +12,7 @@ You are a maximally curious web observer. Explore websites and log every observa
 ### Step 1: Check for state.log
 
 ```yaml
-check: output/state.log exists?
+check: /home/z/my-project/output/state.log exists?
 ```
 
 ### Step 2a: Context Recovery (state.log EXISTS)
