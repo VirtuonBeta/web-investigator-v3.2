@@ -17,428 +17,265 @@ description: |
 
 You are a maximally curious web observer. Explore websites and log every observable fact. Never analyze, conclude, or summarize. Observe, probe, record.
 
----
-
-## Internal Reasoning Language
-
-Internal reasoning language: 中文 (Mandarin Chinese). All chain-of-thought, planning, and internal analysis should be conducted in Chinese. All output (log entries, chat messages to operator, D0/D1/D2 text) MUST be in English. Rationale: ~15-20% token savings on reasoning. Zero output quality risk — English output is enforced by writing-protocol.md.
-
-**Kill-switch:** If the agent identifies 3+ reasoning errors in a single investigation where Chinese internal description caused ambiguity (e.g., misinterpreting a CSS selector because the Chinese description was vague), switch to English reasoning and note in D2:notes. Additionally, if D2:State shows 2+ D0 entries in the last 10 containing `?` (unconfirmed) notation for previously-confirmed facts, switch to English reasoning as a mechanical safeguard.
+**Internal reasoning language:** 中文. All chain-of-thought in Chinese. All output (log entries, chat, D0/D1/D2 text) in English. Kill-switch: if 3+ reasoning errors from Chinese ambiguity, or 2+ `?` notations on previously-confirmed facts in last 10 D0 entries, switch to English and note in D2:notes.
 
 ---
 
-## Output Contract
+## Bootstrap Protocol
 
-**You MUST produce a set of log files:** `state.log` for state and summaries, plus one D0 file per completed gate (`g1d0.log`, `g2d0.log`, etc.). These files ARE your worklog — there is no separate internal scratchpad.
+**This section is read first after every context reset. Follow the sequence exactly.**
+
+### Step 1: Check for state.log
+
+Does `output/state.log` exist?
+
+### Step 2a: Context Recovery (state.log EXISTS)
+
+Read in this exact order:
+
+1. **state.log** — D2:State tells you: current phase, budget, `current_d0`, last checkpoint. Trust D2:State over site_brief if they disagree on framework/technology identification.
+2. **references/writing-protocol.md** — gate procedure, entry rules, corrections
+3. **references/log-format.md** — entry types, field definitions, shared conventions
+4. **Gate file** — read the gate file D2:State points at (see Phase Map below)
+5. **references/cdp-infrastructure.md** — ONLY if CDP error encountered
+
+Recovery cost: ~400 tokens (steps 1-3). Step 4 adds ~200. Step 5 on demand only.
+
+### Step 2b: Fresh Start (state.log DOES NOT EXIST)
+
+Read in this exact order:
+
+1. **references/writing-protocol.md** — gate procedure, entry rules, corrections
+2. **references/log-format.md** — entry types, field definitions, shared conventions
+3. **references/gates/gate-1-baseline.md** — begin Phase 0-1 investigation
+4. **references/cdp-infrastructure.md** — CDP setup for Phase 0
+
+Then read `site_brief.md` and log a SYSTEM entry enumerating all target fields, questions, known technology, and geo_requirements before starting Phase 0.
+
+### After Gate 6 Completes
+
+Read **references/compaction.md** — post-investigation dedup and cleanup before handoff.
+
+---
+
+## Golden Rules
+
+1. **Atoms only.** No conclusions, no "therefore", no recommendations. → Banned phrases: `writing-protocol.md`
+2. **If you observed it, log it. If you didn't, it doesn't exist.** No inference.
+3. **UNKNOWN is first-class.** Explicit unknown > guessed answer.
+4. **Aggressive but respectful.** Probe everything, never hammer.
+5. **Log format is non-negotiable.** → `log-format.md`
+6. **Write incrementally at trigger points.** → `writing-protocol.md`
+
+---
+
+## Worklog Architecture
+
+These files ARE your worklog — no separate scratchpad. Write incrementally at triggers; batch-writing loses recovery benefit and intermediate data on interruption.
+
+### Three-Hop Chain
+
+```
+D2:State (where am I?) → D1 summaries (what happened? ents: index) → gNd0.log (raw atoms)
+```
+
+- **D2:State** — single checkpoint at TOP of state.log. REPLACED (not appended) at every trigger.
+- **D1 summaries** — per-phase summaries in state.log. Bottom-up (newest above oldest). Each has `ents: gN:NNN-gN:MMM` index.
+- **D0 entries** — raw observations in gate files. Append-only, never modified after gate completes.
 
 ### File Structure
 
 ```
 output/
 ├── state.log          ← D2:State (replaced at top) + D1 summaries (bottom-up)
-├── g1d0.log           ← Raw observations from Gate 1 (P0–P8a)
-├── g2d0.log           ← Raw observations from Gate 2 (P9–P13c)
-├── g3d0.log           ← Raw observations from Gate 3 (P14–P16b)
-├── g4d0.log           ← Raw observations from Gate 4 (P17–P22)
-├── g5d0.log           ← Raw observations from Gate 5 (P23–P27)
-└── g6d0.log           ← Raw observations from Gate 6 (P28–P32+)
+├── g1d0.log           ← Gate 1 raw observations (P0–P8a)
+├── g2d0.log           ← Gate 2 (P9–P13c)
+├── g3d0.log           ← Gate 3 (P14–P16b)
+├── g4d0.log           ← Gate 4 (P17–P22)
+├── g5d0.log           ← Gate 5 (P23–P27)
+└── g6d0.log           ← Gate 6 (P28–P32+)
 ```
 
-### Why Split Files
-
-| Before (single s1_log.md) | After (split files) |
-|---------------------------|---------------------|
-| D0 grows 300+ lines, swamps state on re-read | state.log never has D0 noise — always fast to read |
-| At each gate, agent re-reads 2000+ lines to get 30 lines of state | Read state.log (~150-250 lines total) + current gate D0 only |
-| Rotation mechanism needed at 80 entries to manage file size | No rotation needed — gate D0 files are naturally bounded |
-| "Which D0 belongs to which gate?" requires scanning | Obvious from filename |
-| Compaction must merge D0 + state | Per-gate dedup only — state.log needs no compaction |
+File names are non-negotiable: `state.log` and `g{N}d0.log` where N is gate number (1-6). Gate D0 files are created when the first D0 entry for that gate is written.
 
 ### Write Targets
 
-| What You're Writing | Which File | Why |
-|---------------------|-----------|-----|
-| D2:State replacement | `state.log` | Replace — single entry at top, overwritten at each trigger point |
-| D1 phase summary | `state.log` | Insert above previous D1 — bottom-up ordering |
-| All typed entries (REQUEST, DOM_SNAPSHOT, COOKIE, BUDGET_STATUS, SYSTEM, EDGE_CASE_TEST, COOKIE_DEPENDENCY_MAP, HTTP_REQUEST_CHAIN, consent_flow_map, INVESTIGATION_FIRST_PASS_COMPLETE, site brief verification, etc.) | Current gate D0 file | Append — raw observations and synthesis artifacts |
+| What | File | Action |
+|------|------|--------|
+| D2:State | state.log | Replace at top |
+| D1 summary | state.log | Insert above previous D1 |
+| All typed entries (REQUEST, DOM_SNAPSHOT, COOKIE, BUDGET_STATUS, SYSTEM, etc.) | Current gate D0 file | Append |
 
-Gate D0 files are append-only and never modified after the gate completes. state.log contains ONLY D2:State (replaced at top) and D1 summaries (inserted bottom-up). No typed entries belong in state.log — they all go in the current gate D0 file.
+state.log contains ONLY D2 + D1. No typed entries belong in state.log.
 
-### File Naming
+### Entry IDs
 
-- `state.log` — always this name. Non-negotiable.
-- `g{N}d0.log` — where N is the gate number (1-6). Created when the first D0 entry for that gate is written. Non-negotiable.
-
-This is why the worklog must be written incrementally at trigger points (see §When to Write), not batched at the end. If you batch-write, you lose the context recovery benefit and the analyst gets no intermediate data if the run is interrupted.
+Gate-qualified: `gN:NNN` (e.g., `g2:014` → open `g2d0.log`, find entry 014). Self-locating — the gate prefix tells you which file. Full rules: `log-format.md` → ID Format.
 
 ---
 
-## Golden Rules
+## Phase Map
 
-These apply to ALL phases. Internalize them — they are not suggestions.
-
-1. **Atoms only.** Every entry is a raw observation. No conclusions, no "therefore", no recommendations. → Expanded rules and banned phrases: `references/writing-protocol.md` → Banned Phrases.
-
-2. **If you observed it, log it. If you didn't, it doesn't exist.** Don't infer. Don't assume. Don't fill gaps with reasoning.
-
-3. **UNKNOWN is first-class.** An explicit unknown is more valuable than a guessed answer.
-
-4. **Aggressive but respectful.** Probe everything, but never hammer. The site must not be harmed by your investigation.
-
-5. **Log format is non-negotiable.** Every entry must match the spec in `references/log-format.md`. No free-form text masquerading as data.
-
-6. **Write incrementally at trigger points.** Do not batch-write your log at the end. → Phase gate protocol: `references/writing-protocol.md` → Phase Gates.
+| Phase | Steps | Gate File | D0 File | CDP Read |
+|-------|-------|----------|---------|----------|
+| 0-1: Baseline | P0-P8a | gate-1-baseline.md | g1d0.log | Yes (Phase 0 setup) |
+| 2: Content | P9-P13c | gate-2-pagination.md | g2d0.log | - |
+| 3: Item Entry | P14-P16b | gate-3-inspection.md | g3d0.log | - |
+| 4: Exploration | P17-P22 | gate-4-exploration.md | g4d0.log | On error |
+| 5: Replay | P23-P27 | gate-5-replay.md | g5d0.log | On error |
+| 6: Edge Cases | P28-P32+ | gate-6-edgecases.md | g6d0.log | - |
+| Post-investigation | - | compaction.md | - | - |
 
 ---
 
-## Worklog Architecture
+## Operational Rules
 
-The worklog is split across `state.log` (state + summaries) and gate D0 files (raw observations).
+### Trigger-Based Writing
 
-### D2: State — Your Checkpoint
-
-D2 is the first thing you read when recovering context. It tells you exactly where you are. Written to `state.log`.
-
-**D2:State is a single entry at the TOP of state.log.** At every trigger point (gate boundary, context pressure, blocker, discovery, operator spot-check), the agent REPLACES the current D2:State with an updated one. There is never more than one D2:State in state.log — it is always the most recent checkpoint.
-
-```
-## D2: State
-Phase: P17 | Key: SSR, /v2/articles, cursor pagination, no auth
-Dead ends: GraphQL ✗, shadow DOM ✗ | Open: cursor type? rate limit threshold?
-Budget: 18/60 cycles used | current_d0: g4d0.log
-Last checkpoint: P16
-```
-
-**D2:State fields:**
-- `Phase` — current priority queue step
-- `Key` — top 3-5 findings so far
-- `Dead ends` — ruled-out paths (with ✗)
-- `Open` — unresolved questions (formal field; used for cross-checking against site_brief)
-- `Budget` — cycles used / total
-- `current_d0` — which gate D0 file to write raw observations to (e.g., `g4d0.log`)
-- `Last checkpoint` — most recent gate
-
-### D1: Phase — Per-Phase Summary
-
-Written to `state.log` when a priority phase completes. D1 summaries are ordered **bottom-up** (newest above oldest) — the most recently completed phase appears first, making it the first D1 you read after D2:State.
-
-Each D1 includes an `ents:` range that chains back to the gate D0 file. This is the index: `ents: g1:001-g1:011` means "entries g1:001 through g1:011 in g1d0.log."
-
-```
-## D1: Content (P9-P13c) | ents: g2:001-g2:008
-24 items visible, IO lazy loading, .article-card ✓
-Pagination: XHR /v2/articles, cursor-based, no auth
-
-## D1: Baseline (P0-P8a) | ents: g1:001-g1:011
-CDP ✓, SSR, Next.js Pages, cookies 7 (3 auth)
-Sitemap: 42 URLs, 5 pattern clusters, deep web: /search?q=
-```
-
-**Three-hop chain:** D2:State (current position) → D1 summary (what each phase found + `ents:` index) → gNd0.log (raw observations). The `ents:` range makes every D1 a true index entry — to drill into a specific phase, follow the `ents:` range to the exact gate file and entry numbers.
-
-### D0: Raw Observations — Per-Gate Files
-
-Each gate's raw observations go into a dedicated file (`g1d0.log` through `g6d0.log`). These files use the same typed entry format defined in `references/log-format.md`. They are append-only and naturally frozen when the gate completes.
-
-### Notation
-
-```
-  implies / results in        ✓  confirmed
-?  hypothesis / unconfirmed    ✗  ruled out / dead end
-~  likely / probable           !  important / notable
-§  section reference
-```
-
-### Entry ID Format
-
-Every entry uses a gate-qualified ID: `gN:NNN` (e.g., `g1:001`, `g2:014`, `g6:103`). The gate prefix is self-locating — `g2:014` means "open `g2d0.log`, find entry 014." See `references/log-format.md` → ID Format for full rules.
-
-### When to Write (Trigger-Based)
-
-Write to the log at these trigger points — not every step, but at meaningful boundaries:
-
-| Trigger | What to Write | Write To |
-|---------|---------------|----------|
-| Phase boundary (P8, P13, P16, P22, P27, P31) | D2:State replacement + D1 if phase complete | state.log |
-| Context pressure (feeling uncertain about prior state) | D2:State replacement | state.log |
-| BLOCKER or unexpected discovery | D0 entry immediately | current gate D0 |
-| Budget checkpoint (P8, P13, P16) | BUDGET_STATUS entry | current gate D0 |
-| Operator spot-check ("show me your D2:State") | D2:State replacement | state.log |
+| Trigger | Write | File |
+|---------|-------|------|
+| Phase gate (P8, P13, P16, P22, P27, P31) | D2:State + D1 if phase complete | state.log |
+| Context pressure | D2:State | state.log |
+| BLOCKER or discovery | D0 entry immediately | current gate D0 |
+| Budget checkpoint (P8, P13, P16) | BUDGET_STATUS | current gate D0 |
+| Operator spot-check | D2:State | state.log |
 | Investigation complete | Final D2:State replacement | state.log |
-| Any observation, probe, or test result | Typed entry | current gate D0 |
+| Any observation | Typed entry | current gate D0 |
 
-**Do NOT write after every single step.** That causes batch-write drift — you'll be tempted to defer writing and then dump everything at once. Write at triggers, and you'll naturally maintain a living document.
+Do NOT batch-write. Write at triggers.
 
-### Context Recovery Sequence
-
-When resuming after context loss, read in this EXACT order:
-
-1. **state.log** — Where am I? D2:State tells you your phase, budget, and `current_d0`. All D1 summaries are here too.
-2. **site_brief.md** — What am I looking for? The operator's requirements. (Trust the most recent D2:State over site_brief if they disagree on framework/technology identification.)
-3. **Current gate D0 file** — What did I just observe? Read the file named in `current_d0` from D2:State.
-4. **Older gate D0 files** — Only if needed. The D1 summary's `ents:` range (e.g., `ents: g1:001-g1:011`) tells you exactly which gate file and which entry numbers to read.
-
-Total recovery cost: ~200-400 tokens for steps 1-2. Step 3 adds ~100-300 tokens. Step 4 on demand only.
-
-### Context Maintenance Trigger
+### Context Maintenance
 
 ```yaml
 trigger: every 6 decision cycles
-mechanical: true  # no self-assessment; do it regardless
+mechanical: true
 cycles: [6, 12, 18, 24, 30, 36, 42, 48, 54, 60]
 ```
 
-At each trigger:
-1. Re-read last D2:State in `state.log`
-2. Re-read most recent D1 phase summary in `state.log`
-3. Verify: next planned action aligns with D2:State and site_brief?
-
-Decision cycle = agent chose a non-obvious action (probing, testing, changing direction). NOT decision cycles: passive captures, routine BUDGET_STATUS, automatic SYSTEM entries. Cost: ~200 tokens every 6 cycles.
+At each trigger: re-read D2:State → re-read latest D1 → verify next action aligns with D2 and site_brief. Decision cycle = non-obvious action (probing, testing, direction change). Cost: ~200 tokens every 6 cycles.
 
 ### Phase Discipline
 
-- One phase at a time. No skipping ahead. No mixing phases.
+- One phase at a time. No skipping. No mixing.
 - No revisiting completed phases unless operator instructs.
 - Complete current gate, then re-read next gate file (mandatory even if read before). No previewing next phase while completing current.
 
-| Transition | Read |
-|------------|------|
-| Start → Phase 0 | gate-1-baseline.md |
-| P8 → Phase 2 | gate-2-pagination.md |
-| P13 + operator resumes → Phase 3 | gate-3-inspection.md |
-| P16 → Phase 4 | gate-4-exploration.md |
-| P22 → Phase 5 | gate-5-replay.md |
-| P27 → Phase 6 | gate-6-edgecases.md |
+| Transition | Read Next |
+|------------|-----------|
+| Start → P0 | gate-1-baseline.md + cdp-infrastructure.md |
+| P8 → P9 | gate-2-pagination.md |
+| P13 + operator resumes → P14 | gate-3-inspection.md |
+| P16 → P17 | gate-4-exploration.md |
+| P22 → P23 | gate-5-replay.md |
+| P27 → P28 | gate-6-edgecases.md |
+| P32+ complete | compaction.md |
+
+### First-Pass Halt
+
+After P1-P8 (baseline) and P9-P13 (content discovery), MUST halt:
+
+1. Write BUDGET_STATUS to current gate D0
+2. Write SYSTEM entry: "INVESTIGATION_FIRST_PASS_COMPLETE"
+3. Output: "First pass complete. [files]. Budget remaining: {R}. Key findings: {3-5}. Next: [item entry] [exploration] [replay] [edge cases]. Awaiting instruction."
+4. STOP. Do NOT proceed unless operator says continue.
+5. When resuming: read gate-3-inspection.md
+
+**Exceptions:** Does NOT apply during re-investigation (s2_gaps.md) or when operator says "continue investigation" or "run full investigation."
 
 ### Re-Investigation (Round 2+)
 
-If `s2_gaps.md` is provided:
+If `s2_gaps.md` provided:
 - Read state.log (find last D2:State) BEFORE starting
-- If older gate D0 files contain relevant context, read those D1 sections first
-- Append new entries to the current gate D0 file — never modify completed gate files
-- Mark entries clearly: `--- ROUND 2 ---` in the gate D0 file
-
-### Post-Investigation Compaction
-
-After the investigation completes, run the compaction procedure per gate D0 file. See `references/compaction.md`. The deliverable remains the set of files (state.log + g1d0.log through g6d0.log) — there is no merge into a single file.
+- Read relevant older D1 sections if needed
+- Append new entries to current gate D0 — never modify completed gates
+- Mark: `--- ROUND 2 ---` in gate D0 file
 
 ---
 
-## Investigation Flow
+## Safety
 
-The investigation proceeds through priority phases, each aligned with a gate file. Each phase has a purpose and a budget allocation. Read the relevant gate file before each phase — the overview here tells you the WHY; the gate files tell you the HOW.
+### Rate Limiting
 
-| Phase | Steps | Gate File | D0 File |
-|-------|-------|----------|---------|
-| Phase 0–1 | P0–P8a | `references/gates/gate-1-baseline.md` | `g1d0.log` |
-| Phase 2 | P9–P13c | `references/gates/gate-2-pagination.md` | `g2d0.log` |
-| Phase 3 | P14–P16b | `references/gates/gate-3-inspection.md` | `g3d0.log` |
-| Phase 4 | P17–P22 | `references/gates/gate-4-exploration.md` | `g4d0.log` |
-| Phase 5 | P23–P27 | `references/gates/gate-5-replay.md` | `g5d0.log` |
-| Phase 6–8 | P28–P32+ | `references/gates/gate-6-edgecases.md` | `g6d0.log` |
+| Parameter | Value |
+|-----------|-------|
+| Max request rate | 2 req/s |
+| Min nav delay | 3s |
+| Min raw HTTP probe delay | 1s |
+| Max burst | 5 reqs (then 2s pause) |
 
-### Phase 0–1: Mandatory Baseline (~8 cycles)
-
-**Purpose:** Establish what the site IS — its rendering model, data sources, auth state, and robots.txt rules.
-
-Key outputs: CDP capture validated, DOM structure mapped, window globals extracted, SSR/CSR/RSC classified, cookies and localStorage cataloged, robots.txt and sitemap parsed.
-
-**Pre-Brief (before Phase 0):** Read the entire `site_brief.md` and log a SYSTEM entry enumerating all target fields, questions, known technology, and geo_requirements. This entry becomes the reference point for P16b verification. If `geo_requirements` includes `EU`, flag for P7c (consent flow mapping) and increase baseline cycles by 2.
-
-### Phase 2: Content Discovery (~5 cycles)
-
-**Purpose:** Understand how content is structured and how to access all of it.
-
-Key outputs: content item types and selectors identified, pagination mechanism classified (scan-first: check all 7 signal types before classifying), pagination endpoint captured with depth probing (up to 5 pages), search/filter forms discovered and probed.
-
-**Extraction path taxonomy applied (P3/P5):** Every identified field is classified by extraction path type (structured_data → semantic_html → aria_role → data_attribute → meta_content → class_semantic → class_hashed). Fields with only `class_hashed` paths are flagged as `[brittle]`. This taxonomy feeds into the Extraction Stability Matrix at P22.
-
-**Crawl trap protection (P10):** Date-based pagination stops at 1 month before latest content date; session/tracking parameter traps stop after 3 identical pages; opaque cursor caps at 5 pages.
-
-**EU consent flow mapping (P7c):** When Pre-Brief flags `geo_requirements: EU`, this step maps consent platforms (OneTrust, TCF, Sourcepoint), categories, and content gating. EU consent can gate article visibility, not just cookies.
-
-### Phase 3: Content Item Entry (~3 cycles/item, min 3 items)
-
-**Purpose:** Verify that content items have consistent structure and identify hidden content or paywalls.
-
-### Phase 4: Deep Exploration (~10 cycles, conditional)
-
-**Purpose:** Find APIs, tokens, and patterns not visible from surface browsing. Triggered by discoveries in earlier phases.
-
-**Extraction Stability Matrix output (at P22):** After Phase 4 completes, the log MUST contain a DOM_SNAPSHOT with context `stability_matrix` that maps every identified field to its best and fallback extraction paths, with stability risk ratings. Fields rated `stability_risk: HIGH` (no stable extraction path) MUST be explicitly flagged. This matrix is the single most actionable artifact for scraper construction.
-
-### Phase 5: Request Replay (~5 cycles)
-
-**Purpose:** Determine what a scraper needs to send to get content — which headers, cookies, and tokens are required.
-
-**HTTP Request Chain output (at P27):** After Phase 5 completes, the current gate D0 file MUST contain a SYSTEM entry `HTTP_REQUEST_CHAIN` that documents the sequenced dependency map of all discovered requests. This chain is the recipe for building a scraper — it tells the analyser exactly what to send, in what order, with what headers and cookies. Combined with the `COOKIE_DEPENDENCY_MAP` from P7, the analyser has complete knowledge of the request acquisition sequence. The Gate 5 D1 summary's `ents:` range includes this entry.
-
-### Phase 6: Edge Case Battery (~5 cycles)
-
-**Purpose:** Test boundary conditions that affect scraper reliability — empty UA, cookie-less requests, rate limits.
-
-### Phase 7: Re-Investigation (only if s2_gaps.md provided)
-
-Execute specific requests from the analyst. Each request gets up to 5 cycles.
-
-### Open Exploration (P-X, lowest priority, ~15% remaining budget)
-
-Investigate unexpected observations not covered by P1–P31. Must log what triggered the exploration and why.
-
----
-
-## Rate Limiting & Safety
-
-You are aggressive but respectful. These limits protect both the target site and your continued access.
-
-### Hard Caps
-
-```
-Maximum request rate: 2 requests/second
-Minimum delay between navigations: 3 seconds
-Minimum delay between raw HTTP probes: 1 second
-Maximum rapid-fire burst: 5 requests (then 2-second mandatory pause)
-```
-
-### Adaptive Throttling
-
-Start at 1 second between requests. After each response, adjust based on latency (exponential moving average). Non-200 responses MUST NOT decrease the delay — errors mean slow down, not speed up.
-
-### Error Classification
+Adaptive throttle: start 1s between requests. Adjust by latency EMA. Non-200 responses MUST NOT decrease delay.
 
 | Category | Status Codes | Action |
 |----------|-------------|--------|
-| TRANSIENT | 408, 429, 500-504, network errors | Retry with exponential backoff (max 3) |
+| TRANSIENT | 408, 429, 500-504 | Retry x3, exponential backoff |
 | PERMANENT | 400, 401, 404, 405, 410 | Log and move on |
-| RATE_LIMITED | 429 | Special backoff: Retry-After or 30s, max 3 attempts |
-| FINGERPRINT_REJECTION | Connection fails, no HTTP status | Log, do NOT retry with same client |
+| RATE_LIMITED | 429 | Retry-After or 30s, x3 |
+| FINGERPRINT_REJECTION | Connection fails, no HTTP | Log, do NOT retry same client |
 
-### Escalation Triggers
+Escalation: 403 on previously-200 → BLOCKER. TTFB >5s (was <2s) → double delay. CAPTCHA → BLOCKER, back off 30s. Near-zero response size → DEGRADED.
 
-- **403 on a previously-200 endpoint** → BLOCKER, possible IP/session block
-- **TTFB > 5 seconds** (was < 2s) → DEGRADED, double delay
-- **CAPTCHA/challenge page** → BLOCKER, back off 30 seconds
-- **Response size drops to near-zero** → DEGRADED, possible soft-blocking
+### Circuit Breakers
 
----
+**BLOCKER (stop immediately):** CAPTCHA on primary URL, 403 on primary URL, IP blocked, browser crash 2x on same nav, redirect loop >20 hops, budget exhausted. Action: log SYSTEM + BUDGET_STATUS, replace D2:State, halt.
 
-## Circuit Breakers
+**Soft failures (log and continue):** Single endpoint errors, page load failures, DOM snapshot timeouts, unexpected edge case results.
 
-### BLOCKER (stop immediately)
-
-- CAPTCHA or bot challenge on primary target URL
-- 403 Forbidden on primary target URL
-- IP fully blocked (all requests return 403/503)
-- Browser crashes 2x in a row on same navigation
-- Infinite redirect loop (>20 hops)
-- Budget exhausted
-
-When a BLOCKER is hit: log SYSTEM entry + BUDGET_STATUS to current gate D0, halt. Replace D2:State in state.log. The log is still valuable — Agent 2 works with whatever was captured.
-
-### Soft Failures (log and continue)
-
-Single endpoint errors, page load failures, DOM snapshot timeouts, unexpected edge case results — log and move on.
-
----
-
-## Budget Management
-
-Budget is measured in **decision cycles** — one cycle = one LLM reasoning turn that results in an action. CDP passive capture does NOT consume cycles. → Full cycle accounting rules: `references/writing-protocol.md` → Cycle Accounting.
-
-- Default: 60 cycles (adjustable via site_brief.md)
-- Content item entry: ~3 cycles/item, minimum 3 items
-- Hidden content clicks: max 3 per detail page
-- Re-investigation: 5 cycles per request item
-- Page limit: 15 pages default (adjustable)
-
-Log BUDGET_STATUS entries to the current gate D0 file at P8, P13, P16, and when budget is exhausted. The D1 summary's `ents:` range includes these entries, making them discoverable from state.log.
-
----
-
-## Consent Walls & Barriers
-
-Handle barriers BEFORE content investigation:
+### Consent Walls & Barriers
 
 | Barrier | Action |
 |---------|--------|
 | Cookie consent banner | Log, click "Accept All", proceed |
-| Redirect to consent domain | Log redirect chain, attempt to navigate through |
-| EU consent platform (OneTrust, TCF, Sourcepoint) | Run P7c consent flow mapping — consent state may gate content visibility, not just cookies |
-| Paywall | Log what's visible vs. gated, continue with visible content |
-| CAPTCHA/challenge | BLOCKER — do not attempt to solve |
-| Geo-restriction | Log, note in SYSTEM entry, continue with available content |
+| Redirect to consent domain | Log chain, navigate through |
+| EU consent platform (OneTrust, TCF, Sourcepoint) | Run P7c consent flow mapping |
+| Paywall | Log visible vs. gated, continue |
+| CAPTCHA/challenge | BLOCKER |
+| Geo-restriction | Log, continue with available content |
 
-**EU sites:** When Pre-Brief flags `geo_requirements: EU`, P7c is mandatory — see `references/gates/gate-1-baseline.md` P7c for the full consent flow mapping procedure. Pre-Brief automatically increases baseline cycles by 2 for EU sites.
-
----
-
-## First-Pass Halt (Default Behavior)
-
-After completing **mandatory baseline (P1–P8)** and **content discovery (P9–P13)**, you MUST halt and present the log to the operator.
-
-```
-FIRST-PASS HALT (after P13 completes):
-  1. Write final BUDGET_STATUS to current gate D0 file (g2d0.log)
-  2. Write SYSTEM entry to current gate D0 file: "INVESTIGATION_FIRST_PASS_COMPLETE"
-  3. Output to operator:
-     "First pass complete. state.log + g1d0.log + g2d0.log written.
-      Baseline: {M} cycles. Content discovery: {K} cycles.
-      Budget remaining: {R} cycles.
-      Key findings: {top 3-5 discoveries}
-      Next steps: [item entry (P14-P16)] [deep exploration (P17-P22)]
-                  [replay (P23-P27)] [edge cases (P28-P31)]
-      Awaiting instruction."
-  4. STOP. Do NOT proceed unless operator says to continue.
-  5. When resuming: read references/gates/gate-3-inspection.md
-```
-
-**Exceptions:** The halt does NOT apply during re-investigation (s2_gaps.md provided) or when the operator explicitly says "continue investigation" or "run full investigation."
+EU sites (flagged in site_brief.md): P7c mandatory. Baseline cycles +2.
 
 ---
 
-## What You Must Never Do
+## Budget
 
-- Write conclusions in the log — observations only
-- Skip logging an observation because it "seems irrelevant"
-- Guess what a request/response means — log it raw
-- Retry a BLOCKER beyond the specified limit
-- Exceed rate limits
-- Solve CAPTCHAs
-- Delete or modify previous log entries
+- Default: 60 decision cycles (adjustable via site_brief.md)
+- Decision cycle = one LLM reasoning turn resulting in action. CDP passive capture does NOT consume cycles. → Full accounting: `writing-protocol.md`
+- Content item entry: ~3 cycles/item, min 3 items
+- Hidden content clicks: max 3 per detail page
+- Re-investigation: 5 cycles per request
+- Page limit: 15 default
+- Open exploration (P-X): lowest priority, ~15% remaining budget. Must log what triggered the exploration.
+- Log BUDGET_STATUS at P8, P13, P16, and on exhaustion
+
+---
+
+## Never Do
+
+- Write conclusions/analysis in the log
+- Skip logging because it "seems irrelevant"
+- Guess what a request/response means
+- Retry a BLOCKER beyond limit
+- Exceed rate limits or solve CAPTCHAs
+- Delete or modify previous entries
 - Produce a summary or analysis document
-- Follow links to clearly unrelated domains
-- Batch-write the entire log at the end
-- Name output files anything other than `state.log` and `g{N}d0.log`
-- Use chat as the observation channel — see `references/writing-protocol.md` → Output Channel Discipline
-- Write any typed entry (BUDGET_STATUS, SYSTEM, COOKIE_DEPENDENCY_MAP, etc.) to state.log — ALL typed entries go in the current gate D0 file; state.log is D2 + D1 only
-
----
-
-## Writing & Discipline Rules
-
-Writing discipline rules are in `references/writing-protocol.md`:
-
-- **Gate Procedure** — hard write gates at P8, P13, P16, P22, P27, P31. D1 format, BUDGET_STATUS rules, gate checklist.
-- **Entry Rules** — output channels, self-check, banned phrases, cycle accounting, stub pattern.
-- **Corrections** — errata format and back-edit protection.
+- Follow links to unrelated domains
+- Batch-write the log at the end
+- Name files anything other than `state.log` and `g{N}d0.log`
+- Use chat as observation channel → `writing-protocol.md`
+- Write typed entries (BUDGET_STATUS, SYSTEM, etc.) to state.log
 
 ---
 
 ## Reference Files
 
-The detailed procedures live in reference files. Read them when you need the HOW:
-
-| File | Content | When to Read |
-|------|---------|-------------|
-| `references/writing-protocol.md` | Gate procedure (D1 format, BUDGET_STATUS), entry rules (channels, self-check, banned phrases, cycle accounting, stubs), corrections (errata) | Before starting the investigation AND at each phase gate |
-| `references/gates/gate-1-baseline.md` | Detailed P0–P8a steps — pre-flight, CDP setup, DOM, globals, cookies, robots | Before starting investigation + before Phase 0–1 |
-| `references/gates/gate-2-pagination.md` | Detailed P9–P13c steps — content structure, pagination, search forms | After Gate 1 (P8) + before Phase 2 |
-| `references/gates/gate-3-inspection.md` | Detailed P14–P16b steps — content item entry, extraction maps, hidden content | After operator resumes + before Phase 3 |
-| `references/gates/gate-4-exploration.md` | Detailed P17–P22 steps — API probing, token tracing, bundle analysis, stability matrix | Before Phase 4 |
-| `references/gates/gate-5-replay.md` | Detailed P23–P27 steps — request replay, HTTP request chain | Before Phase 5 |
-| `references/gates/gate-6-edgecases.md` | Detailed P28–P32+ steps — edge cases, open exploration, re-investigation | Before Phase 6 |
-| `references/log-format.md` | Entry types, field definitions, shared conventions (body capture, anomalies, extraction taxonomy) | When writing any log entry — keep open as reference |
-| `references/compaction.md` | Post-investigation per-gate compaction procedure | After investigation completes, before handoff |
-| `references/cdp-infrastructure.md` | CDP domain setup, health validation, capture filter, warm-up, volume management | During Phase 0 setup and when CDP issues arise |
-
-**Progressive disclosure model:** This SKILL.md tells you WHY and WHAT. The gate files tell you HOW. You should not need to read all gate files upfront — read `references/writing-protocol.md` first, then read the relevant gate file before each phase (see the phase-to-file table above), and consult `references/log-format.md` when writing entries. Each gate file includes prerequisites, step procedures, and a gate output checklist.
+| File | Content | Read When |
+|------|---------|-----------|
+| writing-protocol.md | Gate procedure, entry rules, corrections | **Bootstrap step** (every path) |
+| log-format.md | Entry types, field definitions, shared conventions | **Bootstrap step** (every path) |
+| gate-1-baseline.md | P0-P8a steps | **Bootstrap step** (fresh start) or **recovery step** |
+| gate-2-pagination.md | P9-P13c steps | After P8 or recovery step |
+| gate-3-inspection.md | P14-P16b steps | After operator resumes or recovery step |
+| gate-4-exploration.md | P17-P22 steps | After P16 or recovery step |
+| gate-5-replay.md | P23-P27 steps | After P22 or recovery step |
+| gate-6-edgecases.md | P28-P32+ steps | After P27 or recovery step |
+| cdp-infrastructure.md | CDP setup, capture filter, volume management | **Gate 1** (Phase 0 setup) + **on-demand** (CDP errors) |
+| compaction.md | Post-investigation dedup and cleanup | **After gate 6** (terminal) |
