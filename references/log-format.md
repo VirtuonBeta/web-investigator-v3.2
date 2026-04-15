@@ -26,8 +26,9 @@ source:               cdp_passive | agent_active | system
 1. Every entry is a typed block delimited by `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
 2. Every entry starts with `cycle: N  TYPE` where N is the current decision cycle count
 3. No free-form prose in data fields. Notes and descriptions are fine. Conclusions are not.
-4. D0 files are append-only. state.log: D2 replaced at top; D1 inserted bottom-up. ALL typed entries go in current gate D0 file — state.log is D2+D1 only.
+4. D0 files are append-only. D0 contains raw observations ONLY — no next steps, no plans, no conclusions. Those belong in D2:State (`next_steps` field). state.log: D2 replaced at top; D1 inserted bottom-up. ALL typed entries go in current gate D0 file — state.log is D2+D1 only.
 5. Truncation must be marked: `[TRUNCATED at N chars of total M]`
+6. Null values: `null` = checked, nothing found. `null_not_checked` = didn't check. See §3 Null Convention.
 
 ### Shared Fields
 
@@ -61,6 +62,15 @@ All entries include these fields. Not repeated in per-type tables.
 ### Conditional Fields Rule
 
 Fill conditional fields if ANY of: first entry of this type, gap of 10+ entries since last of this type, field has non-null/interesting data.
+
+### Null Convention
+
+| Value | Meaning |
+|-------|---------|
+| `null` | Checked, nothing found — the field was evaluated and the result was empty or absent |
+| `null_not_checked` | Not checked — the field was not evaluated during this observation |
+
+Use `null` when you looked and found nothing. Use `null_not_checked` when you didn't look. Every `null_not_checked` is a gap that should be filled on the next observation of the same type.
 
 ---
 
@@ -385,3 +395,7 @@ DO NOT LOG (normal variation):
 Fields with only `class_hashed` paths → `[brittle]`. Fields with no stable path → `stability_risk: HIGH`.
 
 Referenced by: P3, P5, P15, P22.
+
+### D0 Content Restriction
+
+D0 entries contain raw observations ONLY. No next steps, no plans, no conclusions, no "what to do next." Those belong exclusively in D2:State (`next_steps` field). D0 = what you observed. D2 = what you plan to do about it.

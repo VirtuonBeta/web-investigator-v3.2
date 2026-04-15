@@ -12,34 +12,48 @@ read_schedule: [investigation_start, each_phase_gate]
 
 ```yaml
 gate_steps: [P8, P13, P16, P22, P27, P31]
-action: STOP
+action: HARD_STOP
 ```
 
-At each gate, execute in order:
+At each gate boundary, execute in order — do NOT proceed to next gate until all steps complete:
 
-1. Write all pending observations → current gate D0 file (`g{N}d0.log`) as typed entries
-2. Replace D2:State → top of `state.log` (current phase, findings, dead ends, budget, `current_d0`)
-3. Write D1 Phase Summary → `state.log`, inserted ABOVE previous D1 (bottom-up ordering)
+1. Write any remaining D0 observations → current gate D0 file (`g{N}d0.log`) as typed entries
+2. Replace D2:State → top of `state.log` (structured format: phase, findings, dead_ends, open, next_steps, budget)
+3. Write D1 Gate Summary → `state.log`, inserted ABOVE previous D1 (bottom-up ordering)
 4. Write BUDGET_STATUS → current gate D0 file (P8, P13, P16 only; other gates only if budget changed significantly)
+5. Re-read `references/writing-protocol.md` and `references/log-format.md` ⚠️ even if you believe you remember them — they must be at top of context
+6. Re-read next gate file (mandatory even if read before)
 
-Skipping a gate violates the output contract. No exceptions.
+**D0 is written DURING the gate, not batched at the boundary.** Write D0 entries 2-4 times per gate — after every 2-3 P-steps or after any significant observation. The gate boundary step 1 catches any final pending observations only. If step 1 produces more than 3-4 entries, you're batching too much — write more frequently during the gate.
+
+Skipping a gate boundary procedure violates the output contract. No exceptions.
 
 ### D1 Format
 
 ```yaml
-trigger: every_phase_gate
+trigger: every_gate_boundary
 ordering: bottom-up  # newest above oldest
 location: state.log
 ```
 
-```
-## D1: {Phase Name} (P{start}-P{end}) | ents: g{N}:{first}-g{N}:{last}
+```yaml
+## D1: {Gate Name} (P{start}-P{end}) | ents: g{N}:{first}-g{N}:{last}
 
-{2-5 sentence summary: key findings, dead ends, open questions.
-Include gN:NNN references for most important observations.}
+rendering: {SSR/CSR/RSC/hybrid}
+data_sources: [{list of embedded data blocks found}]
+api_endpoints: [{list with key properties}]
+cookies: {summary with key dependency refs}
+sitemap: {findings}
+consent: {findings}
+key_selectors: {root, card, type classification}
+dead_ends: [{ruled-out paths with gN:NNN evidence}]
+open: [{unresolved questions}]
+budget_at_gate: {N}/{total}
 ```
 
-`ents:` is the index — `ents: g1:001-g1:011` means "open g1d0.log, entries g1:001 through g1:011." Insert new D1 ABOVE previous D1. Most recent phase = first D1 after D2:State.
+Include only fields relevant to this gate. Reference key D0 entries with gN:NNN. `ents:` is the index — `ents: g1:001-g1:011` means "open g1d0.log, entries g1:001 through g1:011." Insert new D1 ABOVE previous D1. Most recent gate = first D1 after D2:State.
+
+D1 must carry enough substance that a reader can understand the gate's findings without reading D0. Count substance, not lines.
 
 ### BUDGET_STATUS at Gates
 
@@ -56,6 +70,7 @@ Include gN:NNN references for most important observations.}
 ☐ BUDGET_STATUS appended to gate D0 file (P8, P13, P16)
 ☐ No banned phrases in any entry
 ☐ Core fields present; conditional fields filled if first-of-type or 10-entry gap
+☐ Re-read writing-protocol.md and log-format.md ⚠️ even if you remember them
 ☐ Re-read next gate file BEFORE first entry of next phase
 ```
 
@@ -130,6 +145,17 @@ Do not use in any entry field.
 | Update D2:State | no |
 
 Report format: `Budget: 14/50 cycles used`. If unsure of exact count → slightly overcount. Never undercount.
+
+### Null Convention
+
+Conditional fields that are checked but yield nothing → `null`. Conditional fields that were not checked → `null_not_checked`.
+
+| Value | Meaning | When to Use |
+|-------|---------|-------------|
+| `null` | Checked, nothing found | Tested/observed and the result was empty or absent |
+| `null_not_checked` | Not checked, no data | Field was not evaluated during this observation |
+
+Example: `req_body: null` means "request had no body." `req_body: null_not_checked` means "I didn't check the request body." Every `null_not_checked` is a gap — fill it on next observation of the same type if possible.
 
 ### Quick-Write Stubs
 
