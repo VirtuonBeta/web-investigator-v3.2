@@ -437,7 +437,7 @@ The detailed procedures live in reference files. Read them when you need the HOW
 | `references/gates/gate-4-exploration.md` | Detailed P17–P22 steps — API probing, token tracing, bundle analysis, stability matrix | Before Phase 4 |
 | `references/gates/gate-5-replay.md` | Detailed P23–P27 steps — request replay, HTTP request chain | Before Phase 5 |
 | `references/gates/gate-6-edgecases.md` | Detailed P28–P32+ steps — edge cases, open exploration, re-investigation | Before Phase 6 |
-| `references/log-format.md` | Entry types, field definitions, body capture rules, errata procedure, file structure | When writing any log entry — keep open as reference |
+| `references/log-format.md` | Entry types, field definitions, shared conventions (body capture, anomalies, extraction taxonomy) | When writing any log entry — keep open as reference |
 | `references/compaction.md` | Post-investigation per-gate compaction procedure | After investigation completes, before handoff |
 | `references/cdp-infrastructure.md` | CDP domain setup, health validation, capture filter, warm-up, volume management | During Phase 0 setup and when CDP issues arise |
 
